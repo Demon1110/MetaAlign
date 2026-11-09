@@ -285,9 +285,19 @@ cargo test  -p metaalign-core                # 单元测试 + 端到端写入测
 cargo clippy --workspace --all-targets       # 静态检查
 cargo fmt --all                              # 统一格式
 
+# 运行：构建并启动，可预填文件，-Release 用发布配置
+pwsh -File scripts/run.ps1 -Files C:\docs
+pwsh -File scripts/run.ps1 -Release
+
+# 打包：构建 release 并生成 dist\MetaAlign-<版本>-windows-x64.zip
+pwsh -File scripts/package-windows.ps1
+pwsh -File scripts/package-windows.ps1 -SkipBuild      # 复用已有产物
+
 # 自动截一张界面图：可指定分页、预填文件与输出路径
 pwsh -File scripts/screenshot.ps1 -Page run -Files C:\docs -Out docs/screenshots/04-run.png
 ```
+
+Linux 侧对应的命令是 `bash scripts/package-linux.sh`（产出 `.tar.gz` 与 `.deb`）。两个打包脚本都会打印产物体积与 SHA-256，并把中间目录放在 `dist\stage\` 下，已在 `.gitignore` 中忽略。
 
 `-Page` 取 `files` / `time` / `office` / `run` / `settings`；脚本会把目标写进 `METAALIGN_SHOT`，应用绘制 3 帧后截图并退出，因此不需要人工守候。运行时按 **F12** 也可以把当前窗口存成 `metaalign-screenshot.png`，方便反馈界面问题。
 

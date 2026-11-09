@@ -23,3 +23,6 @@ rustc-ice-*.txt
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 .openidea/
+
+# 打包产物（scripts/package-windows.ps1 与 scripts/package-linux.sh 的输出）
+dist/
