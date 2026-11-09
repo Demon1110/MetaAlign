@@ -100,3 +100,34 @@ pub fn set_readonly(path: &Path, readonly: bool) -> Result<()> {
 pub fn unsupported_creation_time() -> MetaError {
     MetaError::Platform("当前平台不支持写入创建时间".to_string())
 }
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn mode(path: &Path) -> u32 {
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    #[test]
+    fn readonly_toggle_only_touches_write_bits() {
+        let dir = std::env::temp_dir().join(format!("metaalign-ro-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("a.txt");
+        std::fs::write(&path, b"x").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        set_readonly(&path, true).unwrap();
+        assert_eq!(mode(&path), 0o444, "置只读应清掉全部写位");
+
+        assert!(clear_readonly_for_write(&path).unwrap());
+        assert_eq!(
+            mode(&path),
+            0o644,
+            "取消只读只恢复属主写位，不能放开成 0666"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
