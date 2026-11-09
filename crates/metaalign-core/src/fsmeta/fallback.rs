@@ -51,10 +51,34 @@ pub fn apply_patch(path: &Path, patch: &FsPatch) -> Result<()> {
     if patch.wants_attributes() {
         log::warn!("{path:?}: 隐藏/系统/存档属性仅 Windows 支持，已跳过");
         if let Some(readonly) = patch.readonly {
-            let mut permissions = std::fs::metadata(path)?.permissions();
-            permissions.set_readonly(readonly);
-            std::fs::set_permissions(path, permissions)?;
+            apply_readonly(path, readonly)?;
         }
+    }
+    Ok(())
+}
+
+/// 在 Unix 上 `set_readonly(false)` 会把文件放开成「谁都能写」（0666），
+/// 因此这里自己动权限位：置只读时清掉全部写位，取消只读时至少恢复属主写位。
+fn apply_readonly(path: &Path, readonly: bool) -> Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut permissions = std::fs::metadata(path)?.permissions();
+        let mode = permissions.mode();
+        let mode = if readonly {
+            mode & !0o222
+        } else {
+            mode | 0o200
+        };
+        permissions.set_mode(mode);
+        std::fs::set_permissions(path, permissions)?;
+    }
+    #[cfg(not(unix))]
+    {
+        let mut permissions = std::fs::metadata(path)?.permissions();
+        permissions.set_readonly(readonly);
+        std::fs::set_permissions(path, permissions)?;
     }
     Ok(())
 }
@@ -64,17 +88,12 @@ pub fn clear_readonly_for_write(path: &Path) -> Result<bool> {
     if !metadata.permissions().readonly() {
         return Ok(false);
     }
-    let mut permissions = metadata.permissions();
-    permissions.set_readonly(false);
-    std::fs::set_permissions(path, permissions)?;
+    apply_readonly(path, false)?;
     Ok(true)
 }
 
 pub fn set_readonly(path: &Path, readonly: bool) -> Result<()> {
-    let mut permissions = std::fs::metadata(path)?.permissions();
-    permissions.set_readonly(readonly);
-    std::fs::set_permissions(path, permissions)?;
-    Ok(())
+    apply_readonly(path, readonly)
 }
 
 #[allow(dead_code)]
