@@ -1,0 +1,20 @@
+[package]
+name = "metaalign-wasm"
+description = "MetaAlign browser bindings (in-memory Office metadata engine)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+metaalign-core = { path = "../metaalign-core" }
+wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true, features = ["clock", "wasmbind"] }
+console_error_panic_hook = { workspace = true }

@@ -1,0 +1,30 @@
+[package]
+name = "metaalign-core"
+description = "Batch filesystem + Office document metadata engine (Windows first, WASM ready)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+chrono = { workspace = true, features = ["clock", "wasmbind"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+walkdir = { workspace = true }
+quick-xml = { workspace = true }
+zip = { workspace = true }
+cfb = { workspace = true }
+rand = { workspace = true }
+encoding_rs = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
+[target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
+filetime = { workspace = true }
+
+[features]
+default = []
