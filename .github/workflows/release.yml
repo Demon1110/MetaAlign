@@ -1,19 +1,24 @@
 # MetaAlign 发布流水线（手动触发）
 #
-#   每次在 Actions 页面点 "Run workflow"，流水线会：
-#     1. 自动把 Cargo.toml 里 [workspace.package].version 递增一个号（默认 patch，可选 minor / major）；
-#     2. 同步 Cargo.lock、提交并推回当前分支；
-#     3. 在该提交上跑 fmt / clippy / 核心测试 / wasm 编译检查；
-#     4. 打包 Windows 与 Linux 产物；
-#     5. 打 tag v<版本> 并创建 GitHub Release，附上两个平台的产物。
+#   在 Actions 页面点 "Run workflow"，流水线严格按下面顺序走：
+#     1. prepare  只算版本号：按 bump 递增 Cargo.toml 的 [workspace.package].version，
+#                 同步 Cargo.lock 里三个 workspace 成员的版本，把这两个文件上传成 artifact。
+#                 ★ 这一步不提交、不 push、不打 tag。
+#     2. checks   fmt --check / clippy -D warnings / 核心测试 / wasm 编译检查（都在新版本上跑）。
+#     3. windows / linux 打包产物（zip / tar.gz / deb，各自附 sha256）。
+#     4. publish  cargo package 校验 + 发布 metaalign-core 到 crates.io
+#                 （仓库配了 CARGO_REGISTRY_TOKEN 才真发，没配就只做打包校验）。
+#     5. release  ★ 全部发布成功后，才提交版本变更、打 tag、创建 GitHub Release。
 #
-#   产物：
-#     · Windows : dist/MetaAlign-<ver>-windows-x64.zip（exe + README + LICENSE + 图标，附 sha256）
-#     · Linux   : dist/MetaAlign-<ver>-linux-x86_64.tar.gz、MetaAlign_<ver>_amd64.deb（附 sha256）
+#   失败语义（与「先提交再打包」相反，是刻意的）：
+#     任何一步失败，分支上都不会留下「只改了版本号」的提交，也不会有 tag / Release；
+#     重跑从当前 Cargo.toml 的版本继续递增，不会重号，crates.io 上也不会留下半个版本。
 #
-#   版本号只有 Cargo.toml 一个来源：打包脚本自己解析，CI 里不再重复抄版本号。
-#   注意：版本递增发生在最前面，若后续构建/测试失败，分支上会留下一次只改了版本号的提交，
-#   此时不会创建 tag 与 Release，重新手动触发会在此基础上继续递增。
+#   提交信息带 [skip ci]：本流水线目前只有手动触发，这个标记是给将来可能的 push 触发留的保险，
+#   避免发版提交把自己再触发一遍。
+#
+#   版本号只有 Cargo.toml 一个来源，打包脚本自己解析，CI 不重复抄。
+#   只发布 metaalign-core：GUI（eframe/GTK）与 wasm（wasm-bindgen）不适合进 crates.io。
 
 name: Release
 
@@ -38,94 +43,84 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ---------------- 递增版本号并推回分支 ----------------
+  # ---------------- 1. 算版本号（只改工作区，不落库） ----------------
   prepare:
     name: Bump version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.bump.outputs.version }}
       tag: ${{ steps.bump.outputs.tag }}
-      sha: ${{ steps.bump.outputs.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      # Cargo.lock 里三处 workspace 成员版本要跟着改，用 cargo metadata 让它自动同步
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Bump version and push
+      - name: Bump version
         id: bump
         env:
           BUMP: ${{ inputs.bump }}
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$GITHUB_REF_NAME"
-
-          current=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          IFS=. read -r major minor patch <<< "$current"
-          case "$BUMP" in
-            major) major=$((major + 1)); minor=0; patch=0 ;;
-            minor) minor=$((minor + 1)); patch=0 ;;
-            patch) patch=$((patch + 1)) ;;
-            *) echo "::error::未知的递增方式 $BUMP"; exit 1 ;;
+          KIND="${BUMP:-patch}"
+          VER="$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f2)"
+          IFS=. read -r MAJ MIN PAT <<< "$VER"
+          case "$KIND" in
+            major) MAJ=$((MAJ + 1)); MIN=0; PAT=0 ;;
+            minor) MIN=$((MIN + 1)); PAT=0 ;;
+            patch) PAT=$((PAT + 1)) ;;
+            *) echo "::error::未知的递增方式 $KIND"; exit 1 ;;
           esac
-          new="$major.$minor.$patch"
-          echo "版本：$current -> $new"
+          NV="$MAJ.$MIN.$PAT"
+          echo "版本：$VER -> $NV"
 
-          if git rev-parse -q --verify "refs/tags/v$new" >/dev/null; then
-            echo "::error::tag v$new 已存在，拒绝覆盖；请先删除该 tag 或改用更大的版本号"
+          # tag 已存在就拒绝，避免覆盖已发布的版本
+          if git rev-parse -q --verify "refs/tags/v$NV" >/dev/null; then
+            echo "::error::tag v$NV 已存在，拒绝覆盖；请先删除该 tag 或改用更大的版本号"
             exit 1
           fi
 
-          python3 - "$new" <<'PY'
-          import pathlib
-          import re
-          import sys
+          # [workspace.package] 只有一处行首 version，整行替换即可
+          sed -i "s/^version = .*/version = \"$NV\"/" Cargo.toml
+          # Cargo.lock 里三个 workspace 成员紧跟 name 的那行版本
+          sed -i -E "/^name = \"metaalign-(core|gui|wasm)\"$/{n;s/^version = \"[^\"]*\"/version = \"$NV\"/;}" Cargo.lock
 
-          new = sys.argv[1]
-          manifest = pathlib.Path("Cargo.toml")
-          text = manifest.read_text(encoding="utf-8")
-          text, count = re.subn(r'(?m)^version = "[^"]*"', f'version = "{new}"', text, count=1)
-          if count != 1:
-              raise SystemExit("Cargo.toml 里没找到 [workspace.package].version")
-          manifest.write_text(text, encoding="utf-8")
-          PY
-
-          # 让 Cargo.lock 里 metaalign-core / -gui / -wasm 的版本同步到新号
-          cargo metadata --format-version 1 > /dev/null
           git diff --stat
+          git diff -- Cargo.lock
 
-          git add Cargo.toml Cargo.lock
-          git commit -m "chore(release): v$new"
-          git push origin "HEAD:$GITHUB_REF_NAME"
-
-          sha=$(git rev-parse HEAD)
           {
-            echo "version=$new"
-            echo "tag=v$new"
-            echo "sha=$sha"
+            echo "version=$NV"
+            echo "tag=v$NV"
           } >> "$GITHUB_OUTPUT"
           {
-            echo "### 本次发布：MetaAlign v$new"
+            echo "### 待发布版本：v$NV"
             echo ""
-            echo "- 递增方式：\`$BUMP\`（$current -> $new）"
-            echo "- 提交：$sha"
+            echo "- 递增方式：\`$KIND\`（$VER -> $NV）"
+            echo "- 该版本尚未提交、未打 tag；全部发布成功后才落库"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # ---------------- 质量门禁：三 crate 一起检查 + 核心引擎测试 ----------------
+      # 后续 job 用同一份 Cargo.toml / Cargo.lock，保证全流水线版本一致
+      - name: Upload bumped manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: |
+            Cargo.toml
+            Cargo.lock
+          if-no-files-found: error
+
+  # ---------------- 2. 质量门禁 ----------------
   checks:
     name: Checks (fmt / clippy / test)
     needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Use bumped manifest
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
+          name: release-manifest
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -146,21 +141,24 @@ jobs:
       - name: Test
         run: cargo test -p metaalign-core
 
-      # wasm 版不参与本次发布，但保证「可 WASM 化」这条线一直编译得过
+      # wasm 版不进 crates.io，但保证「可 WASM 化」这条线一直编译得过
       - name: Wasm check
         run: |
           rustup target add wasm32-unknown-unknown
           cargo check -p metaalign-wasm --target wasm32-unknown-unknown
 
-  # ---------------- Windows：release 构建 + zip ----------------
+  # ---------------- 3a. Windows：release 构建 + zip ----------------
   windows:
     name: Windows x64
     needs: [prepare, checks]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Use bumped manifest
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
+          name: release-manifest
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -170,7 +168,7 @@ jobs:
         with:
           key: windows
 
-      # 脚本内部：cargo build --release → 组装 dist\stage → Compress-Archive → 打印 sha256
+      # 脚本内部：cargo build --release → 组装 dist\stage → Compress-Archive → 写 sha256
       - name: Package
         shell: pwsh
         run: pwsh -NoProfile -File scripts/package-windows.ps1
@@ -184,15 +182,18 @@ jobs:
             dist/*.zip.sha256
           if-no-files-found: error
 
-  # ---------------- Linux：release 构建 + tar.gz / deb ----------------
+  # ---------------- 3b. Linux：release 构建 + tar.gz / deb ----------------
   linux:
     name: Linux x86_64
     needs: [prepare, checks]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Use bumped manifest
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
+          name: release-manifest
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -217,38 +218,94 @@ jobs:
             dist/*.deb.sha256
           if-no-files-found: error
 
-  # ---------------- 打 tag 并创建 GitHub Release ----------------
+  # ---------------- 4. 打包校验 + 发布 crates.io ----------------
+  publish:
+    name: Publish to crates.io
+    needs: [prepare, checks]
+    runs-on: ubuntu-latest
+    # 有 token 才真发；没配 secret 时只做打包校验，tag / Release 照常继续
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use bumped manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: release-manifest
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: publish
+
+      # 不发布也要能打包成功：缺 description / license 之类的元数据会在这里就失败
+      - name: Package verify
+        run: cargo package -p metaalign-core --allow-dirty
+
+      # --allow-dirty：版本号由 prepare 改在工作区里，此刻还没提交（提交在最后一步）
+      - name: Publish to crates.io
+        if: env.CARGO_REGISTRY_TOKEN != ''
+        run: cargo publish -p metaalign-core --allow-dirty
+
+  # ---------------- 5. 全部成功后再提交、打 tag、发 Release ----------------
   release:
-    name: Create GitHub Release
-    needs: [prepare, windows, linux]
+    name: Commit, tag, GitHub Release
+    needs: [prepare, windows, linux, publish]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Use bumped manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: release-manifest
+
+      - name: Download package artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: List files
-        run: ls -lhR dist
+      - name: Commit version bump
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$GITHUB_REF_NAME"
 
-      # tag 由 API 创建并指向本次递增提交；若已存在则 prepare 阶段已经拦过
+          git diff --stat
+          git add Cargo.toml Cargo.lock
+          if git diff --cached --quiet; then
+            echo "分支上已经是 v$VERSION，跳过提交"
+          else
+            git commit -m "chore(release): v$VERSION [skip ci]"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+
       - name: Create tag
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
-          SHA: ${{ needs.prepare.outputs.sha }}
-        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA"
+        run: |
+          git tag "$TAG"
+          git push origin "$TAG"
 
-      - name: Create release
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
+          ls -lhR dist
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --target "${{ needs.prepare.outputs.sha }}" \
             --title "MetaAlign v$VERSION" \
             --generate-notes \
             dist/*
