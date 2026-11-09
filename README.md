@@ -307,23 +307,24 @@ Windows 可执行文件的图标、产品名与版本号由 `crates/metaalign-gu
 
 ## 发布
 
-`.github/workflows/release.yml` 定义了发布流水线，版本号由打包脚本从 `Cargo.toml` 解析，CI 不重复维护：
+`.github/workflows/release.yml` 只有一种触发方式：**手动触发**。点一次 `Run workflow`，流水线自己递增版本号、打包、打 tag、发 Release，不需要本地执行任何 git 命令：
 
 | 任务 | 内容 | 产物 |
 | --- | --- | --- |
+| `prepare` | 递增 `Cargo.toml` 的版本、同步 `Cargo.lock`、提交并推回分支 | 新版本号、tag、提交 SHA |
 | `checks` | `fmt --check`、`clippy -D warnings`、核心测试、wasm 目标编译检查 | 无 |
 | `windows` | `scripts/package-windows.ps1` | `MetaAlign-<版本>-windows-x64.zip` + `.sha256` |
 | `linux` | `scripts/package-linux.sh` | `.tar.gz`、`.deb` + `.sha256` |
-| `release` | tag `v*` 触发，先校验 tag 与 `Cargo.toml` 版本一致，再创建 Release | GitHub Release |
+| `release` | 打 tag `v<版本>`，用两个平台的产物创建 GitHub Release | GitHub Release |
 
-手动触发（`workflow_dispatch`）只上传 Actions Artifacts，不动 Release。正式发版：
+触发时选递增方式：`patch`（默认，1.0.0 → 1.0.1）、`minor`（1.0.1 → 1.1.0）、`major`（1.1.0 → 2.0.0）。版本号仍然只有 `Cargo.toml` 一个来源，打包脚本从里面解析，CI 不重复抄写。
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+几点行为要知道：
 
-tag 与版本号不一致时流水线会直接失败，避免发出去的包和版本对不上。
+- tag 已存在时 `prepare` 直接失败，不会覆盖已有 tag。
+- 版本递增发生在最前面，若后续构建或测试失败，分支上会留下一次「只改了版本号」的提交，此时不会产生 tag 与 Release；重新触发会在此基础上继续递增，不会重号。
+- `prepare` 需要往当前分支 push，所以 `Settings → Actions → General → Workflow permissions` 要允许写权限；分支开了保护规则时需要放行 `github-actions[bot]`。
+- 只想本地验证打包，仍然用 `scripts/` 下的脚本，不经过 CI。
 
 ### 体积
 
