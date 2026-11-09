@@ -1,37 +1,131 @@
-# MetaAlign 发布流水线
+# MetaAlign 发布流水线（手动触发）
 #
-#   · Windows : dist/MetaAlign-<ver>-windows-x64.zip（exe + README + LICENSE + 图标，附 sha256）
-#   · Linux   : dist/MetaAlign-<ver>-linux-x86_64.tar.gz、MetaAlign_<ver>_amd64.deb（附 sha256）
-#   · 触发方式：
-#       - 手动触发（workflow_dispatch）：只产出 Actions Artifacts，不动 Release
-#       - 推送 tag v*（如 git tag v1.0.0 && git push origin v1.0.0）：
-#         自动创建 GitHub Release 并挂上两个平台的产物
+#   每次在 Actions 页面点 "Run workflow"，流水线会：
+#     1. 自动把 Cargo.toml 里 [workspace.package].version 递增一个号（默认 patch，可选 minor / major）；
+#     2. 同步 Cargo.lock、提交并推回当前分支；
+#     3. 在该提交上跑 fmt / clippy / 核心测试 / wasm 编译检查；
+#     4. 打包 Windows 与 Linux 产物；
+#     5. 打 tag v<版本> 并创建 GitHub Release，附上两个平台的产物。
 #
-#   产物统一由 scripts/ 下的打包脚本生成，版本号一律取自 Cargo.toml 的
-#   [workspace.package].version，脚本自己解析，CI 里不再重复抄一遍版本号。
+#   产物：
+#     · Windows : dist/MetaAlign-<ver>-windows-x64.zip（exe + README + LICENSE + 图标，附 sha256）
+#     · Linux   : dist/MetaAlign-<ver>-linux-x86_64.tar.gz、MetaAlign_<ver>_amd64.deb（附 sha256）
+#
+#   版本号只有 Cargo.toml 一个来源：打包脚本自己解析，CI 里不再重复抄版本号。
+#   注意：版本递增发生在最前面，若后续构建/测试失败，分支上会留下一次只改了版本号的提交，
+#   此时不会创建 tag 与 Release，重新手动触发会在此基础上继续递增。
 
 name: Release
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
+    inputs:
+      bump:
+        description: 版本递增方式
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
 
 permissions:
   contents: write
 
+# 同一时间只允许一条发布流水线，避免两次触发把版本号撞在一起
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: true
+  group: release
+  cancel-in-progress: false
 
 jobs:
+  # ---------------- 递增版本号并推回分支 ----------------
+  prepare:
+    name: Bump version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+      sha: ${{ steps.bump.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      # Cargo.lock 里三处 workspace 成员版本要跟着改，用 cargo metadata 让它自动同步
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Bump version and push
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$GITHUB_REF_NAME"
+
+          current=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          IFS=. read -r major minor patch <<< "$current"
+          case "$BUMP" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+            *) echo "::error::未知的递增方式 $BUMP"; exit 1 ;;
+          esac
+          new="$major.$minor.$patch"
+          echo "版本：$current -> $new"
+
+          if git rev-parse -q --verify "refs/tags/v$new" >/dev/null; then
+            echo "::error::tag v$new 已存在，拒绝覆盖；请先删除该 tag 或改用更大的版本号"
+            exit 1
+          fi
+
+          python3 - "$new" <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          new = sys.argv[1]
+          manifest = pathlib.Path("Cargo.toml")
+          text = manifest.read_text(encoding="utf-8")
+          text, count = re.subn(r'(?m)^version = "[^"]*"', f'version = "{new}"', text, count=1)
+          if count != 1:
+              raise SystemExit("Cargo.toml 里没找到 [workspace.package].version")
+          manifest.write_text(text, encoding="utf-8")
+          PY
+
+          # 让 Cargo.lock 里 metaalign-core / -gui / -wasm 的版本同步到新号
+          cargo metadata --format-version 1 > /dev/null
+          git diff --stat
+
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore(release): v$new"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+
+          sha=$(git rev-parse HEAD)
+          {
+            echo "version=$new"
+            echo "tag=v$new"
+            echo "sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### 本次发布：MetaAlign v$new"
+            echo ""
+            echo "- 递增方式：\`$BUMP\`（$current -> $new）"
+            echo "- 提交：$sha"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ---------------- 质量门禁：三 crate 一起检查 + 核心引擎测试 ----------------
   checks:
     name: Checks (fmt / clippy / test)
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -65,6 +159,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -95,6 +191,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -119,26 +217,12 @@ jobs:
             dist/*.deb.sha256
           if-no-files-found: error
 
-  # ---------------- tag 触发：创建 GitHub Release ----------------
+  # ---------------- 打 tag 并创建 GitHub Release ----------------
   release:
     name: Create GitHub Release
-    needs: [windows, linux]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [prepare, windows, linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-
-      # tag 与 Cargo.toml 版本必须一致，避免发出去的东西和版本号对不上
-      - name: Verify tag matches Cargo.toml
-        run: |
-          manifest_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          tag_version="${GITHUB_REF_NAME#v}"
-          if [ "$manifest_version" != "$tag_version" ]; then
-            echo "::error::tag $GITHUB_REF_NAME 与 Cargo.toml 版本 $manifest_version 不一致"
-            exit 1
-          fi
-          echo "版本 $manifest_version 一致"
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -148,12 +232,29 @@ jobs:
       - name: List files
         run: ls -lhR dist
 
+      # tag 由 API 创建并指向本次递增提交；若已存在则 prepare 阶段已经拦过
+      - name: Create tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA"
+
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "MetaAlign $GITHUB_REF_NAME" \
+            --target "${{ needs.prepare.outputs.sha }}" \
+            --title "MetaAlign v$VERSION" \
             --generate-notes \
             dist/*
+
+      - name: Summary
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          echo "已发布 https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
