@@ -234,16 +234,11 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
 
     ui.add_space(12.0);
     ui::card(ui, p, |ui| {
-        ui::section_title(
-            ui,
-            p,
-            "支持范围",
-            "哪些文件能写到内部属性",
-            "",
-        );
+        ui::section_title(ui, p, "支持范围", "哪些文件能写到内部属性", "");
         ui.horizontal_wrapped(|ui| {
             for label in [
-                "DOCX", "DOCM", "XLSX", "XLSM", "PPTX", "PPTM", "DOC", "XLS", "PPT", "WPS", "ET", "DPS",
+                "DOCX", "DOCM", "XLSX", "XLSM", "PPTX", "PPTM", "DOC", "XLS", "PPT", "WPS", "ET",
+                "DPS",
             ] {
                 ui::chip(ui, p, label, p.accent);
                 ui.add_space(2.0);
@@ -256,9 +251,11 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
                 .color(p.text_muted),
         );
         ui.label(
-            RichText::new("OOXML 采用结构保留式补丁，仅替换命中字段的文本，其余命名空间与格式保持原样。")
-                .size(11.0)
-                .color(p.text_dim),
+            RichText::new(
+                "OOXML 采用结构保留式补丁，仅替换命中字段的文本，其余命名空间与格式保持原样。",
+            )
+            .size(11.0)
+            .color(p.text_dim),
         );
     });
 
@@ -314,7 +311,8 @@ fn text_row(
                 if response.changed() {
                     changed = true;
                 }
-                if dice && ui::icon_button(ui, p, Icon::Dice, "填入一个随机姓名").clicked() {
+                if dice && ui::icon_button(ui, p, Icon::Dice, "填入一个随机姓名").clicked()
+                {
                     field.value = random_name(names, &mut rand::rng());
                     changed = true;
                 }
@@ -332,7 +330,6 @@ fn text_row(
     ui.add_space(6.0);
     changed
 }
-
 
 fn office_time_row(
     ui: &mut Ui,

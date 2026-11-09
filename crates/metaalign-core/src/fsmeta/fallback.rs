@@ -32,8 +32,12 @@ pub fn apply_patch(path: &Path, patch: &FsPatch) -> Result<()> {
     }
     if patch.accessed.is_some() || patch.modified.is_some() {
         let metadata = std::fs::metadata(path)?;
-        let current_atime = metadata.accessed().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-        let current_mtime = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+        let current_atime = metadata
+            .accessed()
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+        let current_mtime = metadata
+            .modified()
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
         let atime = patch
             .accessed
             .map(to_file_time)

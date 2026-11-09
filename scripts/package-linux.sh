@@ -70,4 +70,7 @@ dpkg-deb --root-owner-group -Zxz --build "$debroot" \
 
 echo "==> 产物"
 ls -lh "$dist/$name.tar.gz" "$dist/MetaAlign_${version}_amd64.deb"
-sha256sum "$dist/$name.tar.gz" "$dist/MetaAlign_${version}_amd64.deb"
+cd "$dist"
+sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+sha256sum "MetaAlign_${version}_amd64.deb" > "MetaAlign_${version}_amd64.deb.sha256"
+cat ./*.sha256

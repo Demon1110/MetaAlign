@@ -1,0 +1,159 @@
+# MetaAlign 发布流水线
+#
+#   · Windows : dist/MetaAlign-<ver>-windows-x64.zip（exe + README + LICENSE + 图标，附 sha256）
+#   · Linux   : dist/MetaAlign-<ver>-linux-x86_64.tar.gz、MetaAlign_<ver>_amd64.deb（附 sha256）
+#   · 触发方式：
+#       - 手动触发（workflow_dispatch）：只产出 Actions Artifacts，不动 Release
+#       - 推送 tag v*（如 git tag v1.0.0 && git push origin v1.0.0）：
+#         自动创建 GitHub Release 并挂上两个平台的产物
+#
+#   产物统一由 scripts/ 下的打包脚本生成，版本号一律取自 Cargo.toml 的
+#   [workspace.package].version，脚本自己解析，CI 里不再重复抄一遍版本号。
+
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------- 质量门禁：三 crate 一起检查 + 核心引擎测试 ----------------
+  checks:
+    name: Checks (fmt / clippy / test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: checks
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test -p metaalign-core
+
+      # wasm 版不参与本次发布，但保证「可 WASM 化」这条线一直编译得过
+      - name: Wasm check
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo check -p metaalign-wasm --target wasm32-unknown-unknown
+
+  # ---------------- Windows：release 构建 + zip ----------------
+  windows:
+    name: Windows x64
+    needs: checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: windows
+
+      # 脚本内部：cargo build --release → 组装 dist\stage → Compress-Archive → 打印 sha256
+      - name: Package
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/package-windows.ps1
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MetaAlign-Windows
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
+          if-no-files-found: error
+
+  # ---------------- Linux：release 构建 + tar.gz / deb ----------------
+  linux:
+    name: Linux x86_64
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: linux
+
+      # 构建只需要 gcc 与 pkg-config（GitHub 的 ubuntu 镜像自带）；GL/X11 是运行时 dlopen 的
+      - name: Package
+        run: bash scripts/package-linux.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MetaAlign-Linux
+          path: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.deb
+            dist/*.deb.sha256
+          if-no-files-found: error
+
+  # ---------------- tag 触发：创建 GitHub Release ----------------
+  release:
+    name: Create GitHub Release
+    needs: [windows, linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # tag 与 Cargo.toml 版本必须一致，避免发出去的东西和版本号对不上
+      - name: Verify tag matches Cargo.toml
+        run: |
+          manifest_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$manifest_version" != "$tag_version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与 Cargo.toml 版本 $manifest_version 不一致"
+            exit 1
+          fi
+          echo "版本 $manifest_version 一致"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List files
+        run: ls -lhR dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "MetaAlign $GITHUB_REF_NAME" \
+            --generate-notes \
+            dist/*

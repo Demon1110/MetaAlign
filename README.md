@@ -303,6 +303,28 @@ Linux 侧对应的命令是 `bash scripts/package-linux.sh`（产出 `.tar.gz` �
 
 核心库的端到端测试会在临时目录里生成一个真实的 `.docx`，跑完整个引擎流程后回读文件系统时间与文档属性，确保「读取 → 改写 → 再读取」是闭环的。
 
+Windows 可执行文件的图标、产品名与版本号由 `crates/metaalign-gui/build.rs` 写进资源段：图标取自 `assets/logo.ico`（16/32/48/64/128/256 六种尺寸），版本信息取自 `Cargo.toml` 的 `[workspace.package].version`，所以在资源管理器里看到的 exe 图标和「属性 → 详细信息」都不会是默认值。
+
+## 发布
+
+`.github/workflows/release.yml` 定义了发布流水线，版本号由打包脚本从 `Cargo.toml` 解析，CI 不重复维护：
+
+| 任务 | 内容 | 产物 |
+| --- | --- | --- |
+| `checks` | `fmt --check`、`clippy -D warnings`、核心测试、wasm 目标编译检查 | 无 |
+| `windows` | `scripts/package-windows.ps1` | `MetaAlign-<版本>-windows-x64.zip` + `.sha256` |
+| `linux` | `scripts/package-linux.sh` | `.tar.gz`、`.deb` + `.sha256` |
+| `release` | tag `v*` 触发，先校验 tag 与 `Cargo.toml` 版本一致，再创建 Release | GitHub Release |
+
+手动触发（`workflow_dispatch`）只上传 Actions Artifacts，不动 Release。正式发版：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+tag 与版本号不一致时流水线会直接失败，避免发出去的包和版本对不上。
+
 ## 许可证
 
 MIT，见 [LICENSE](LICENSE)。

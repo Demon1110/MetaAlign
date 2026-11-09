@@ -33,8 +33,12 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
         ui.label(
             RichText::new(match app.plan.options.backup {
                 BackupMode::None => "最快，但改坏后无法直接还原，建议只在对文件内容有把握时使用。",
-                BackupMode::Sidecar => "在原文件旁边生成「文件名.docx.metaalign.bak」，重名时自动加序号。",
-                BackupMode::Folder => "在原文件所在目录下建立 metaalign_backup/ 子目录，保持工作目录整洁。",
+                BackupMode::Sidecar => {
+                    "在原文件旁边生成「文件名.docx.metaalign.bak」，重名时自动加序号。"
+                }
+                BackupMode::Folder => {
+                    "在原文件所在目录下建立 metaalign_backup/ 子目录，保持工作目录整洁。"
+                }
             })
             .size(11.0)
             .color(p.text_dim),
@@ -51,11 +55,17 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
             "决定「添加文件夹」时把哪些文件放进队列",
         );
 
-        if ui.checkbox(&mut app.filter.recursive, "包含子文件夹").changed() {
+        if ui
+            .checkbox(&mut app.filter.recursive, "包含子文件夹")
+            .changed()
+        {
             changed = true;
         }
         if ui
-            .checkbox(&mut app.filter.skip_lock_files, "跳过 Office 临时锁文件（~$ 开头）")
+            .checkbox(
+                &mut app.filter.skip_lock_files,
+                "跳过 Office 临时锁文件（~$ 开头）",
+            )
             .changed()
         {
             changed = true;
@@ -83,13 +93,7 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
 
     ui.add_space(12.0);
     ui::card(ui, p, |ui| {
-        ui::section_title(
-            ui,
-            p,
-            "行为",
-            "运行开关",
-            "",
-        );
+        ui::section_title(ui, p, "行为", "运行开关", "");
         if ui
             .checkbox(
                 &mut app.plan.options.only_office_files,
@@ -139,8 +143,7 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
             if ui::ghost_button(ui, p, "恢复默认").clicked() {
                 app.plan = metaalign_core::model::BatchPlan::default();
                 app.filter = metaalign_core::scan::ScanFilter::default();
-                app.extension_draft =
-                    metaalign_core::office::supported_extensions().join(", ");
+                app.extension_draft = metaalign_core::office::supported_extensions().join(", ");
                 app.refresh_samples();
                 changed = true;
             }
@@ -149,7 +152,13 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
 
     ui.add_space(12.0);
     ui::card(ui, p, |ui| {
-        ui::section_title(ui, p, "外观", "主题", "深色更适合长时间整理，浅色更适合演示");
+        ui::section_title(
+            ui,
+            p,
+            "外观",
+            "主题",
+            "深色更适合长时间整理，浅色更适合演示",
+        );
         let mut mode = app.theme;
         if ui::segmented(
             ui,
@@ -175,7 +184,10 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
         for (label, value) in [
             ("版本", metaalign_core::VERSION.to_string()),
             ("界面", "egui / eframe 0.37".to_string()),
-            ("核心库", "metaalign-core（纯逻辑，wasm32 可用）".to_string()),
+            (
+                "核心库",
+                "metaalign-core（纯逻辑，wasm32 可用）".to_string(),
+            ),
             ("许可证", "MIT".to_string()),
         ] {
             ui::key_value(ui, p, label, &value, false);
@@ -205,15 +217,9 @@ fn export_plan(app: &mut MetaAlignApp) {
     match serde_json::to_string_pretty(&app.plan) {
         Ok(text) => match std::fs::write(&path, text) {
             Ok(()) => app.toast(crate::app::ToastKind::Success, "配置已导出"),
-            Err(error) => app.toast(
-                crate::app::ToastKind::Error,
-                format!("写入失败：{error}"),
-            ),
+            Err(error) => app.toast(crate::app::ToastKind::Error, format!("写入失败：{error}")),
         },
-        Err(error) => app.toast(
-            crate::app::ToastKind::Error,
-            format!("序列化失败：{error}"),
-        ),
+        Err(error) => app.toast(crate::app::ToastKind::Error, format!("序列化失败：{error}")),
     }
 }
 
@@ -238,15 +244,9 @@ fn import_plan(app: &mut MetaAlignApp) {
                 app.mark_dirty();
                 app.toast(crate::app::ToastKind::Success, "配置已导入");
             }
-            Err(error) => app.toast(
-                crate::app::ToastKind::Error,
-                format!("解析失败：{error}"),
-            ),
+            Err(error) => app.toast(crate::app::ToastKind::Error, format!("解析失败：{error}")),
         },
-        Err(error) => app.toast(
-            crate::app::ToastKind::Error,
-            format!("读取失败：{error}"),
-        ),
+        Err(error) => app.toast(crate::app::ToastKind::Error, format!("读取失败：{error}")),
     }
 }
 

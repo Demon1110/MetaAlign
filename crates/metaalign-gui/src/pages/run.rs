@@ -122,7 +122,12 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
                 ui::chip(ui, p, format!("成功 {}", report.succeeded), p.ok);
                 ui::chip(ui, p, format!("跳过 {}", report.skipped), p.text_muted);
                 ui::chip(ui, p, format!("失败 {}", report.failed), p.error);
-                ui::chip(ui, p, format!("变更 {} 处", report.change_count()), p.accent);
+                ui::chip(
+                    ui,
+                    p,
+                    format!("变更 {} 处", report.change_count()),
+                    p.accent,
+                );
                 ui.label(
                     RichText::new(format!("用时 {} ms", report.elapsed_ms))
                         .size(11.0)
@@ -183,7 +188,7 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
 
         match app.report.as_ref() {
             Some(report) if !report.outcomes.is_empty() => {
-                let height = (ui.available_height() - 30.0).max(260.0).min(460.0);
+                let height = (ui.available_height() - 30.0).clamp(260.0, 460.0);
                 ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .max_height(height)

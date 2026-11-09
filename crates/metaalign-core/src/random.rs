@@ -3,7 +3,7 @@
 use chrono::{DateTime, TimeDelta, Utc};
 use rand::RngExt;
 
-use crate::model::{FieldMode, SequenceMode, TimeField, TimePatch, TimeRule, TimeRange};
+use crate::model::{FieldMode, SequenceMode, TimeField, TimePatch, TimeRange, TimeRule};
 
 /// Milliseconds between two instants.
 fn millis_between(a: DateTime<Utc>, b: DateTime<Utc>) -> i64 {
@@ -176,18 +176,15 @@ pub fn sample_times(rule: &TimeRule, count: usize) -> Vec<TimePatch> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::FieldMode;
 
     fn rule_with_range(start_ms: i64, end_ms: i64) -> TimeRule {
-        let mut rule = TimeRule::default();
-        rule.range = TimeRange {
-            start: DateTime::from_timestamp_millis(start_ms).unwrap(),
-            end: DateTime::from_timestamp_millis(end_ms).unwrap(),
-        };
-        rule.created.mode = FieldMode::Random;
-        rule.modified.mode = FieldMode::Random;
-        rule.accessed.mode = FieldMode::Random;
-        rule
+        TimeRule {
+            range: TimeRange {
+                start: DateTime::from_timestamp_millis(start_ms).unwrap(),
+                end: DateTime::from_timestamp_millis(end_ms).unwrap(),
+            },
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -198,7 +195,10 @@ mod tests {
         let mut rng = rand::rng();
         for _ in 0..200 {
             let patch = generate_times(&rule, 0, 1, &mut rng);
-            for value in [patch.created, patch.modified, patch.accessed].into_iter().flatten() {
+            for value in [patch.created, patch.modified, patch.accessed]
+                .into_iter()
+                .flatten()
+            {
                 assert!(value.timestamp_millis() >= start, "{value:?} < start");
                 assert!(value.timestamp_millis() <= end, "{value:?} > end");
             }
@@ -236,10 +236,12 @@ mod tests {
 
     #[test]
     fn keep_mode_produces_nothing() {
-        let mut rule = TimeRule::default();
-        rule.created = TimeField::keep();
-        rule.modified = TimeField::keep();
-        rule.accessed = TimeField::keep();
+        let rule = TimeRule {
+            created: TimeField::keep(),
+            modified: TimeField::keep(),
+            accessed: TimeField::keep(),
+            ..Default::default()
+        };
         let patch = generate_times(&rule, 0, 1, &mut rand::rng());
         assert!(patch.is_empty());
     }

@@ -26,3 +26,7 @@ serde_json = { workspace = true }
 rfd = { workspace = true }
 env_logger = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+# 把 logo.ico 与版本信息烧进 Windows 可执行文件（资源管理器里的图标、属性页的版本号）
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"

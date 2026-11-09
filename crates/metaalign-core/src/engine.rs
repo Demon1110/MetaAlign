@@ -83,7 +83,10 @@ pub struct BatchReport {
 
 impl BatchReport {
     pub fn change_count(&self) -> usize {
-        self.outcomes.iter().map(|outcome| outcome.changes.len()).sum()
+        self.outcomes
+            .iter()
+            .map(|outcome| outcome.changes.len())
+            .sum()
     }
 }
 
@@ -334,10 +337,16 @@ pub fn apply_one(
     };
 
     if plan.is_noop() {
-        return finish(ItemStatus::Skipped("没有勾选任何要修改的项".to_string()), Vec::new());
+        return finish(
+            ItemStatus::Skipped("没有勾选任何要修改的项".to_string()),
+            Vec::new(),
+        );
     }
     if plan.options.only_office_files && !format.supports_office_meta() {
-        return finish(ItemStatus::Skipped("不是可写元数据的 Office 文件".to_string()), Vec::new());
+        return finish(
+            ItemStatus::Skipped("不是可写元数据的 Office 文件".to_string()),
+            Vec::new(),
+        );
     }
 
     let snapshot = match fsmeta::read_snapshot(path) {
@@ -386,7 +395,10 @@ pub fn apply_one(
                 changes,
             );
         }
-        return finish(ItemStatus::Skipped("当前设置不会改变这个文件".to_string()), Vec::new());
+        return finish(
+            ItemStatus::Skipped("当前设置不会改变这个文件".to_string()),
+            Vec::new(),
+        );
     }
 
     let mut changes = Vec::new();
@@ -413,10 +425,7 @@ pub fn apply_one(
     }
 
     if let Err(error) = make_backup(path, plan.options.backup) {
-        return finish(
-            ItemStatus::Failed(format!("备份失败：{error}")),
-            changes,
-        );
+        return finish(ItemStatus::Failed(format!("备份失败：{error}")), changes);
     }
 
     if !update.is_empty() {
@@ -480,7 +489,9 @@ pub fn validate(plan: &BatchPlan) -> Vec<String> {
     if plan.time.any_time_needed() && plan.time.range.span_millis() < 60_000 {
         warnings.push("随机时间区间不足 1 分钟，生成的时间会非常接近".to_string());
     }
-    if plan.office.any_change() && !plan.office.follow_file_time && plan.office.created.is_keep()
+    if plan.office.any_change()
+        && !plan.office.follow_file_time
+        && plan.office.created.is_keep()
         && plan.office.modified.is_keep()
     {
         // nothing to warn about, kept for symmetry with future checks
@@ -488,7 +499,9 @@ pub fn validate(plan: &BatchPlan) -> Vec<String> {
     if plan.options.backup == BackupMode::None {
         warnings.push("未开启备份，修改后无法直接恢复原文件".to_string());
     }
-    if plan.time.sequence != crate::model::SequenceMode::Independent && plan.time.range.span_millis() < 60_000 {
+    if plan.time.sequence != crate::model::SequenceMode::Independent
+        && plan.time.range.span_millis() < 60_000
+    {
         warnings.push("顺序模式下建议把区间放大到至少几小时".to_string());
     }
     warnings

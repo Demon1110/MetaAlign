@@ -5,11 +5,9 @@ use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, TimeDelta, Utc};
-use metaalign_core::engine::{apply_one, ItemStatus};
+use metaalign_core::engine::{ItemStatus, apply_one};
 use metaalign_core::fsmeta;
-use metaalign_core::model::{
-    BackupMode, BatchPlan, FlagMode, TextField, TimeField, TimeRange,
-};
+use metaalign_core::model::{BackupMode, BatchPlan, FlagMode, TextField, TimeField, TimeRange};
 use metaalign_core::office;
 
 fn temp_dir(tag: &str) -> PathBuf {
@@ -43,7 +41,9 @@ fn write_docx(path: &Path) {
     for (name, content) in parts {
         let options = zip::write::SimpleFileOptions::default();
         writer.start_file(name, options).expect("start zip entry");
-        writer.write_all(content.as_bytes()).expect("write zip entry");
+        writer
+            .write_all(content.as_bytes())
+            .expect("write zip entry");
     }
     let bytes = writer.finish().expect("finish zip").into_inner();
     std::fs::write(path, bytes).expect("write docx");

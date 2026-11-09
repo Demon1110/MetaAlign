@@ -122,7 +122,9 @@ fn parse_section(bytes: &[u8], offset: usize, fmtid: [u8; 16]) -> Result<Section
     let mut entries = Vec::with_capacity(count);
     for index in 0..count {
         let base = offset + 8 + index * 8;
-        let Some(id) = read_u32(bytes, base) else { break };
+        let Some(id) = read_u32(bytes, base) else {
+            break;
+        };
         let Some(relative) = read_u32(bytes, base + 4) else {
             break;
         };
@@ -276,7 +278,9 @@ fn build_propset(set: &PropSet, section_bytes: &[Vec<u8>]) -> Vec<u8> {
     header.resize(28, 0);
     header[24..28].copy_from_slice(&(count as u32).to_le_bytes());
 
-    let mut out = Vec::with_capacity(header.len() + count * 20 + section_bytes.iter().map(Vec::len).sum::<usize>());
+    let mut out = Vec::with_capacity(
+        header.len() + count * 20 + section_bytes.iter().map(Vec::len).sum::<usize>(),
+    );
     out.extend_from_slice(&header);
     let mut offset = 28 + count * 20;
     for (section, bytes) in set.sections.iter().zip(section_bytes) {
@@ -340,7 +344,11 @@ fn write_stream(path: &Path, name: &str, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn apply_values(set: &PropSet, section_index: usize, updates: &[(u32, Vec<u8>)]) -> (Vec<u8>, Vec<u32>) {
+fn apply_values(
+    set: &PropSet,
+    section_index: usize,
+    updates: &[(u32, Vec<u8>)],
+) -> (Vec<u8>, Vec<u32>) {
     let mut sections = set.sections.clone();
     let mut applied = Vec::new();
     if let Some(section) = sections.get_mut(section_index) {
@@ -549,7 +557,10 @@ mod tests {
             (1u32, make_i2(936)),
             (2, make_string("旧标题", 936)),
             (4, make_string("旧作者", 936)),
-            (12, make_time(DateTime::from_timestamp(1_500_000_000, 0).unwrap())),
+            (
+                12,
+                make_time(DateTime::from_timestamp(1_500_000_000, 0).unwrap()),
+            ),
         ];
         let bytes = new_propset(FMTID_SUMMARY, 936, values);
         parse_propset(&bytes).unwrap()
@@ -558,11 +569,21 @@ mod tests {
     #[test]
     fn propset_roundtrip_preserves_values() {
         let set = sample_set();
-        let bytes = build_propset(&set, &set.sections.iter().map(serialize_section).collect::<Vec<_>>());
+        let bytes = build_propset(
+            &set,
+            &set.sections
+                .iter()
+                .map(serialize_section)
+                .collect::<Vec<_>>(),
+        );
         let parsed = parse_propset(&bytes).unwrap();
         let section = &parsed.sections[0];
         assert_eq!(
-            section.props.iter().find(|prop| prop.id == 2).and_then(|prop| prop_string(prop, section.codepage)),
+            section
+                .props
+                .iter()
+                .find(|prop| prop.id == 2)
+                .and_then(|prop| prop_string(prop, section.codepage)),
             Some("旧标题".to_string())
         );
     }
@@ -579,11 +600,19 @@ mod tests {
         let parsed = parse_propset(&bytes).unwrap();
         let section = &parsed.sections[0];
         assert_eq!(
-            section.props.iter().find(|prop| prop.id == 4).and_then(|prop| prop_string(prop, section.codepage)),
+            section
+                .props
+                .iter()
+                .find(|prop| prop.id == 4)
+                .and_then(|prop| prop_string(prop, section.codepage)),
             Some("新作者".to_string())
         );
         assert_eq!(
-            section.props.iter().find(|prop| prop.id == 8).and_then(|prop| prop_string(prop, section.codepage)),
+            section
+                .props
+                .iter()
+                .find(|prop| prop.id == 8)
+                .and_then(|prop| prop_string(prop, section.codepage)),
             Some("审核员".to_string())
         );
     }

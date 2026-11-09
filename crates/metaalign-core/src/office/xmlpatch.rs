@@ -219,7 +219,11 @@ pub fn patch_children(xml: &str, replacements: &[Replacement]) -> Result<(String
             .find(|replacement| replacement.local == child.local)
         {
             Some(replacement) => {
-                out.push_str(&rebuilt_child(&xml[child.start..child.end], child, replacement));
+                out.push_str(&rebuilt_child(
+                    &xml[child.start..child.end],
+                    child,
+                    replacement,
+                ));
                 applied.push(child.local.clone());
             }
             None => out.push_str(&xml[child.start..child.end]),
@@ -258,17 +262,13 @@ pub fn collect_children(xml: &str) -> Result<Vec<(String, String)>> {
             Ok(Event::Start(event)) => {
                 depth += 1;
                 if depth == 2 {
-                    current =
-                        Some(event.local_name().as_ref().to_string());
+                    current = Some(event.local_name().as_ref().to_string());
                     text.clear();
                 }
             }
             Ok(Event::Empty(event)) => {
                 if depth == 1 {
-                    out.push((
-                        event.local_name().as_ref().to_string(),
-                        String::new(),
-                    ));
+                    out.push((event.local_name().as_ref().to_string(), String::new()));
                 }
             }
             Ok(Event::Text(event)) => {
@@ -282,7 +282,9 @@ pub fn collect_children(xml: &str) -> Result<Vec<(String, String)>> {
                 }
             }
             Ok(Event::End(_)) => {
-                if depth == 2 && let Some(name) = current.take() {
+                if depth == 2
+                    && let Some(name) = current.take()
+                {
                     let value = quick_xml::escape::unescape(&text)
                         .map(|value| value.into_owned())
                         .unwrap_or(text.clone());

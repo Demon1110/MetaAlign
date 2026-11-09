@@ -8,10 +8,10 @@
 
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::PathBuf;
 #[cfg(target_os = "linux")]
 use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
 
 use egui::FontData;
 use egui_system_font_provider::SystemFontProvider;
@@ -25,9 +25,7 @@ pub fn install(ctx: &egui::Context) {
 
     if let Some(data) = load_system_cjk() {
         let mut fonts = egui::FontDefinitions::default();
-        fonts
-            .font_data
-            .insert(FAMILY.to_owned(), Arc::new(data));
+        fonts.font_data.insert(FAMILY.to_owned(), Arc::new(data));
         for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
             fonts
                 .families

@@ -5,11 +5,9 @@ use std::collections::BTreeMap;
 use chrono::{Datelike, TimeZone};
 
 use egui::{RichText, Sense, Ui, Vec2};
-use metaalign_core::model::{
-    FieldMode, FlagMode, SequenceMode, TimeField, TimeRange,
-};
+use metaalign_core::model::{FieldMode, FlagMode, SequenceMode, TimeField, TimeRange};
 
-use crate::app::{format_time_opt, MetaAlignApp};
+use crate::app::{MetaAlignApp, format_time_opt};
 use crate::theme::Palette;
 use crate::ui;
 
@@ -66,7 +64,8 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
         ui.horizontal_wrapped(|ui| {
             ui.label(RichText::new("快速设置").size(11.0).color(p.text_dim));
             let now = chrono::Utc::now();
-            for (label, days) in [("最近 7 天", 7i64), ("最近 30 天", 30), ("最近一年", 365)] {
+            for (label, days) in [("最近 7 天", 7i64), ("最近 30 天", 30), ("最近一年", 365)]
+            {
                 if ui::ghost_button(ui, p, label).clicked() {
                     app.plan.time.range = TimeRange {
                         start: now - chrono::TimeDelta::days(days),
@@ -232,8 +231,12 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
         });
         ui.add_space(4.0);
         ui.horizontal(|ui| {
-            for (label, width) in [("文件", 54.0f32), ("创建", 152.0), ("修改", 152.0), ("访问", 152.0)]
-            {
+            for (label, width) in [
+                ("文件", 54.0f32),
+                ("创建", 152.0),
+                ("修改", 152.0),
+                ("访问", 152.0),
+            ] {
                 ui.add_sized(
                     Vec2::new(width, 18.0),
                     egui::Label::new(RichText::new(label).size(10.5).color(p.text_dim)),
@@ -394,10 +397,7 @@ fn flag_row(
 }
 
 fn warning(ui: &mut Ui, p: &Palette, text: &str) {
-    let (rect, _) = ui.allocate_exact_size(
-        Vec2::new(ui.available_width(), 28.0),
-        Sense::hover(),
-    );
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 28.0), Sense::hover());
     ui.painter().rect_filled(
         rect,
         egui::CornerRadius::same(7),

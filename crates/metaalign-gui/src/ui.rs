@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use egui::{
-    Align2, Button, Color32, CornerRadius, FontId, Frame, Label, Margin, Response, RichText,
-    Sense, Stroke, TextEdit, TextStyle, Ui, Vec2,
+    Align2, Button, Color32, CornerRadius, FontId, Frame, Label, Margin, Response, RichText, Sense,
+    Stroke, TextEdit, TextStyle, Ui, Vec2,
 };
 
 use crate::icons::{self, Icon};
@@ -44,11 +44,7 @@ pub fn section_title(ui: &mut Ui, p: &Palette, eyebrow: &str, title: &str, subti
     );
     if !subtitle.is_empty() {
         ui.add_space(1.0);
-        ui.label(
-            RichText::new(subtitle)
-                .size(12.0)
-                .color(p.text_muted),
-        );
+        ui.label(RichText::new(subtitle).size(12.0).color(p.text_muted));
     }
     ui.add_space(12.0);
 }
@@ -56,7 +52,11 @@ pub fn section_title(ui: &mut Ui, p: &Palette, eyebrow: &str, title: &str, subti
 pub fn divider(ui: &mut Ui, p: &Palette) {
     let rect = ui.available_rect_before_wrap();
     let y = rect.top() + 6.0;
-    ui.painter().hline(rect.left()..=rect.right(), y, Stroke::new(1.0, p.border_soft));
+    ui.painter().hline(
+        rect.left()..=rect.right(),
+        y,
+        Stroke::new(1.0, p.border_soft),
+    );
     ui.add_space(12.0);
 }
 
@@ -100,11 +100,17 @@ pub fn segmented<T: Copy + PartialEq>(
         {
             for (option, label) in options {
                 let selected = *value == *option;
-                let text = RichText::new(*label)
-                    .size(12.0)
-                    .color(if selected { p.on_accent } else { p.text_muted });
+                let text = RichText::new(*label).size(12.0).color(if selected {
+                    p.on_accent
+                } else {
+                    p.text_muted
+                });
                 let button = Button::new(text)
-                    .fill(if selected { p.accent } else { Color32::TRANSPARENT })
+                    .fill(if selected {
+                        p.accent
+                    } else {
+                        Color32::TRANSPARENT
+                    })
                     .stroke(Stroke::new(
                         1.0,
                         if selected { p.accent } else { p.border_soft },
@@ -126,7 +132,11 @@ pub fn icon_button(ui: &mut Ui, p: &Palette, icon: Icon, tooltip: &str) -> Respo
     let size = Vec2::splat(28.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let hovered = response.hovered();
-    let bg = if hovered { p.card_hover } else { Color32::TRANSPARENT };
+    let bg = if hovered {
+        p.card_hover
+    } else {
+        Color32::TRANSPARENT
+    };
     ui.painter().rect_filled(rect, CornerRadius::same(7), bg);
     icons::paint(
         ui.painter(),
@@ -142,27 +152,39 @@ use egui::Rect;
 pub fn primary_button(ui: &mut Ui, p: &Palette, text: &str, enabled: bool, width: f32) -> Response {
     ui.add_enabled(
         enabled,
-        Button::new(
-            RichText::new(text)
-                .size(14.0)
-                .strong()
-                .color(if enabled { p.on_accent } else { p.text_dim }),
-        )
+        Button::new(RichText::new(text).size(14.0).strong().color(if enabled {
+            p.on_accent
+        } else {
+            p.text_dim
+        }))
         .fill(if enabled { p.accent } else { p.card })
-        .stroke(Stroke::new(1.0, if enabled { p.accent } else { p.border_soft }))
+        .stroke(Stroke::new(
+            1.0,
+            if enabled { p.accent } else { p.border_soft },
+        ))
         .corner_radius(10)
         .min_size(Vec2::new(width, 38.0)),
     )
 }
 
-pub fn secondary_button(ui: &mut Ui, p: &Palette, text: &str, enabled: bool, width: f32) -> Response {
+pub fn secondary_button(
+    ui: &mut Ui,
+    p: &Palette,
+    text: &str,
+    enabled: bool,
+    width: f32,
+) -> Response {
     ui.add_enabled(
         enabled,
-        Button::new(RichText::new(text).size(13.0).color(if enabled { p.text } else { p.text_dim }))
-            .fill(p.card)
-            .stroke(Stroke::new(1.0, p.border))
-            .corner_radius(10)
-            .min_size(Vec2::new(width, 38.0)),
+        Button::new(RichText::new(text).size(13.0).color(if enabled {
+            p.text
+        } else {
+            p.text_dim
+        }))
+        .fill(p.card)
+        .stroke(Stroke::new(1.0, p.border))
+        .corner_radius(10)
+        .min_size(Vec2::new(width, 38.0)),
     )
 }
 
@@ -180,12 +202,11 @@ pub fn stat_block(ui: &mut Ui, p: &Palette, label: &str, value: &str, hint: &str
     ui.vertical(|ui| {
         ui.label(RichText::new(label).size(11.0).color(p.text_dim));
         ui.add_space(4.0);
-        ui.label(
-            RichText::new(value)
-                .size(21.0)
-                .strong()
-                .color(if accent { p.accent } else { p.text }),
-        );
+        ui.label(RichText::new(value).size(21.0).strong().color(if accent {
+            p.accent
+        } else {
+            p.text
+        }));
         if !hint.is_empty() {
             ui.add_space(2.0);
             ui.label(RichText::new(hint).size(11.0).color(p.text_muted));
@@ -208,9 +229,7 @@ pub fn parse_datetime(text: &str) -> Option<DateTime<Utc>> {
         }
     }
     if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
-        return date
-            .and_hms_opt(0, 0, 0)
-            .map(localize);
+        return date.and_hms_opt(0, 0, 0).map(localize);
     }
     None
 }
@@ -320,10 +339,8 @@ pub fn drop_zone(ui: &mut Ui, p: &Palette, active: bool) -> Response {
         ui.painter().extend(shapes);
     }
 
-    let icon_rect = Rect::from_center_size(
-        rect.center() + Vec2::new(0.0, -14.0),
-        Vec2::splat(30.0),
-    );
+    let icon_rect =
+        Rect::from_center_size(rect.center() + Vec2::new(0.0, -14.0), Vec2::splat(30.0));
     icons::paint(
         ui.painter(),
         icon_rect,
@@ -333,7 +350,11 @@ pub fn drop_zone(ui: &mut Ui, p: &Palette, active: bool) -> Response {
     ui.painter().text(
         rect.center() + Vec2::new(0.0, 20.0),
         Align2::CENTER_CENTER,
-        if active { "松开即可加入队列" } else { "拖拽文件或文件夹到这里" },
+        if active {
+            "松开即可加入队列"
+        } else {
+            "拖拽文件或文件夹到这里"
+        },
         FontId::proportional(14.0),
         p.text,
     );
@@ -356,10 +377,7 @@ pub fn drop_zone_compact(ui: &mut Ui, p: &Palette, active: bool) -> Response {
     let fill = if active { p.accent_soft } else { p.sunken };
     ui.painter().rect_filled(rect, CornerRadius::same(12), fill);
 
-    let stroke = Stroke::new(
-        1.2,
-        if active { p.accent } else { p.border_soft },
-    );
+    let stroke = Stroke::new(1.2, if active { p.accent } else { p.border_soft });
     let corners = [
         rect.left_top() + Vec2::new(1.0, 1.0),
         rect.right_top() + Vec2::new(-1.0, 1.0),
@@ -417,7 +435,11 @@ pub fn icon_text_button(
     let size = Vec2::new(galley.size().x + 42.0, 32.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let fill = if primary {
-        if response.hovered() { p.accent.gamma_multiply(0.9) } else { p.accent }
+        if response.hovered() {
+            p.accent.gamma_multiply(0.9)
+        } else {
+            p.accent
+        }
     } else if response.hovered() {
         p.card_hover
     } else {

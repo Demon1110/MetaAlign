@@ -86,6 +86,8 @@ Compress-Archive -Path $stage -DestinationPath $zip -Force
 
 $zipInfo = Get-Item -LiteralPath $zip
 $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLower()
+# 校验和随包发布，方便下载后核对
+"$hash  $($zipInfo.Name)" | Set-Content -LiteralPath "$zip.sha256" -Encoding ascii
 Write-Host ("==> 压缩包：{0}" -f $zip)
 Write-Host ("    {0:N2} MB" -f ($zipInfo.Length / 1MB))
 Write-Host ("    sha256: {0}" -f $hash)

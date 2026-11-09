@@ -405,9 +405,7 @@ pub struct BatchPlan {
 impl BatchPlan {
     /// True when the plan would leave every file untouched.
     pub fn is_noop(&self) -> bool {
-        !self.time.any_time_needed()
-            && !self.attrs.any_change()
-            && !self.office.any_change()
+        !self.time.any_time_needed() && !self.attrs.any_change() && !self.office.any_change()
     }
 }
 

@@ -31,7 +31,13 @@ pub enum Page {
 }
 
 impl Page {
-    pub const ALL: [Page; 5] = [Page::Files, Page::Time, Page::Office, Page::Run, Page::Settings];
+    pub const ALL: [Page; 5] = [
+        Page::Files,
+        Page::Time,
+        Page::Office,
+        Page::Run,
+        Page::Settings,
+    ];
 
     pub fn title(self) -> &'static str {
         match self {
@@ -280,7 +286,7 @@ impl MetaAlignApp {
         let mut added = 0usize;
         for path in paths {
             if path.is_dir() {
-                let result = scan::collect(&[path.clone()], &self.filter);
+                let result = scan::collect(std::slice::from_ref(&path), &self.filter);
                 for error in &result.errors {
                     self.log(LogLevel::Warn, error);
                 }
@@ -669,7 +675,8 @@ impl MetaAlignApp {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             let (rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
-            ui.painter().rect_filled(rect, CornerRadius::same(11), p.accent);
+            ui.painter()
+                .rect_filled(rect, CornerRadius::same(11), p.accent);
             ui.painter().text(
                 rect.center(),
                 Align2::CENTER_CENTER,
@@ -829,13 +836,14 @@ impl MetaAlignApp {
                     ui.label(
                         RichText::new(format!(
                             "上次：成功 {} / 跳过 {} / 失败 {} · {} ms",
-                            report.succeeded,
-                            report.skipped,
-                            report.failed,
-                            report.elapsed_ms
+                            report.succeeded, report.skipped, report.failed, report.elapsed_ms
                         ))
                         .size(10.5)
-                        .color(if report.failed > 0 { p.warn } else { p.text_dim }),
+                        .color(if report.failed > 0 {
+                            p.warn
+                        } else {
+                            p.text_dim
+                        }),
                     );
                 }
             });
@@ -884,7 +892,12 @@ impl MetaAlignApp {
             );
             ui.add_space(6.0);
             ui.vertical(|ui| {
-                ui.label(RichText::new(item.file_name()).size(13.5).strong().color(p.text));
+                ui.label(
+                    RichText::new(item.file_name())
+                        .size(13.5)
+                        .strong()
+                        .color(p.text),
+                );
                 ui.label(
                     RichText::new(item.format.label())
                         .size(10.5)
@@ -1073,7 +1086,8 @@ impl MetaAlignApp {
                         ui.horizontal(|ui| {
                             let (icon_rect, _) =
                                 ui.allocate_exact_size(Vec2::splat(38.0), Sense::hover());
-                            ui.painter().rect_filled(icon_rect, CornerRadius::same(11), p.accent);
+                            ui.painter()
+                                .rect_filled(icon_rect, CornerRadius::same(11), p.accent);
                             ui.painter().text(
                                 icon_rect.center(),
                                 Align2::CENTER_CENTER,
@@ -1083,7 +1097,9 @@ impl MetaAlignApp {
                             );
                             ui.add_space(10.0);
                             ui.vertical(|ui| {
-                                ui.label(RichText::new("MetaAlign").size(19.0).strong().color(p.text));
+                                ui.label(
+                                    RichText::new("MetaAlign").size(19.0).strong().color(p.text),
+                                );
                                 ui.label(
                                     RichText::new(format!(
                                         "版本 {} · Windows 元数据批量整理",
@@ -1109,9 +1125,7 @@ impl MetaAlignApp {
                             if ui::primary_button(ui, p, "知道了", true, 92.0).clicked() {
                                 close = true;
                             }
-                            ui.label(
-                                RichText::new("MIT License").size(10.5).color(p.text_dim),
-                            );
+                            ui.label(RichText::new("MIT License").size(10.5).color(p.text_dim));
                         });
                     });
             });
@@ -1130,7 +1144,10 @@ fn capture_screenshot(app: &mut MetaAlignApp, ctx: &egui::Context) {
             std::path::PathBuf::from("metaalign-screenshot.png"),
             false,
         );
-        app.toast(ToastKind::Success, "界面截图已保存为 metaalign-screenshot.png");
+        app.toast(
+            ToastKind::Success,
+            "界面截图已保存为 metaalign-screenshot.png",
+        );
     }
     if app.auto_shot && ctx.cumulative_frame_nr() >= 3 {
         app.auto_shot = false;
@@ -1157,16 +1174,12 @@ impl eframe::App for MetaAlignApp {
         egui::Panel::left("metaalign.sidebar")
             .exact_size(228.0)
             .resizable(false)
-            .frame(
-                Frame::new()
-                    .fill(p.panel)
-                    .inner_margin(Margin {
-                        left: 14,
-                        right: 14,
-                        top: 16,
-                        bottom: 12,
-                    }),
-            )
+            .frame(Frame::new().fill(p.panel).inner_margin(Margin {
+                left: 14,
+                right: 14,
+                top: 16,
+                bottom: 12,
+            }))
             .show(ui, |ui| self.sidebar(ui, &p));
 
         egui::Panel::bottom("metaalign.status")
@@ -1186,11 +1199,7 @@ impl eframe::App for MetaAlignApp {
                 .min_size(280.0)
                 .max_size(440.0)
                 .resizable(true)
-                .frame(
-                    Frame::new()
-                        .fill(p.panel)
-                        .inner_margin(Margin::same(16)),
-                )
+                .frame(Frame::new().fill(p.panel).inner_margin(Margin::same(16)))
                 .show(ui, |ui| {
                     egui::ScrollArea::vertical()
                         .auto_shrink([false, false])
@@ -1315,7 +1324,8 @@ pub fn format_time_opt(value: Option<DateTime<Utc>>) -> String {
     value.map(format_time).unwrap_or_else(|| "—".to_string())
 }
 
-fn describe_outcome(outcome: &ItemOutcome) -> String {    let name = outcome
+fn describe_outcome(outcome: &ItemOutcome) -> String {
+    let name = outcome
         .path
         .file_name()
         .and_then(|name| name.to_str())

@@ -35,17 +35,26 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
     let thin = Stroke::new(1.2, color);
     match icon {
         Icon::Files => {
-            let back = Rect::from_min_max(r.min + Vec2::new(2.0, 0.0), Pos2::new(r.max.x, r.max.y - 3.0));
+            let back = Rect::from_min_max(
+                r.min + Vec2::new(2.0, 0.0),
+                Pos2::new(r.max.x, r.max.y - 3.0),
+            );
             painter.rect_filled(back, 3.0, color.gamma_multiply(0.25));
             painter.rect_stroke(back, 3.0, thin, egui::StrokeKind::Inside);
-            let front = Rect::from_min_max(r.min + Vec2::new(0.0, 3.0), Pos2::new(r.max.x - 2.0, r.max.y));
+            let front = Rect::from_min_max(
+                r.min + Vec2::new(0.0, 3.0),
+                Pos2::new(r.max.x - 2.0, r.max.y),
+            );
             painter.rect_filled(front, 3.0, color.gamma_multiply(0.45));
             painter.rect_stroke(front, 3.0, stroke, egui::StrokeKind::Inside);
         }
         Icon::Clock => {
             painter.circle_stroke(r.center(), r.width() * 0.42, stroke);
             let center = r.center();
-            painter.line_segment([center, center + Vec2::new(0.0, -r.height() * 0.26)], stroke);
+            painter.line_segment(
+                [center, center + Vec2::new(0.0, -r.height() * 0.26)],
+                stroke,
+            );
             painter.line_segment([center, center + Vec2::new(r.width() * 0.22, 0.0)], stroke);
         }
         Icon::Document => {
@@ -98,8 +107,20 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
             painter.rect_stroke(body, 3.0, thin, egui::StrokeKind::Inside);
         }
         Icon::Plus => {
-            painter.line_segment([Pos2::new(r.center().x, r.top()), Pos2::new(r.center().x, r.bottom())], stroke);
-            painter.line_segment([Pos2::new(r.left(), r.center().y), Pos2::new(r.right(), r.center().y)], stroke);
+            painter.line_segment(
+                [
+                    Pos2::new(r.center().x, r.top()),
+                    Pos2::new(r.center().x, r.bottom()),
+                ],
+                stroke,
+            );
+            painter.line_segment(
+                [
+                    Pos2::new(r.left(), r.center().y),
+                    Pos2::new(r.right(), r.center().y),
+                ],
+                stroke,
+            );
         }
         Icon::Trash => {
             painter.rect_stroke(
@@ -173,8 +194,8 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
             let mut previous: Option<Pos2> = None;
 
             for step in 0..=steps {
-                let angle = start
-                    + (std::f32::consts::TAU - 2.0 * start) * (step as f32 / steps as f32);
+                let angle =
+                    start + (std::f32::consts::TAU - 2.0 * start) * (step as f32 / steps as f32);
                 let point = r.center() + Vec2::new(angle.cos() * radius, angle.sin() * radius);
                 if let Some(from) = previous {
                     painter.line_segment([from, point], thin);
@@ -186,8 +207,7 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
             let inner_start = (-y).atan2(x - offset);
             for step in 0..=steps {
                 let angle = inner_start + (-2.0 * inner_start) * (step as f32 / steps as f32);
-                let point =
-                    inner_center + Vec2::new(angle.cos() * cut, angle.sin() * cut);
+                let point = inner_center + Vec2::new(angle.cos() * cut, angle.sin() * cut);
                 if let Some(from) = previous {
                     painter.line_segment([from, point], thin);
                 }
@@ -205,7 +225,14 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
             );
         }
         Icon::Check => {
-            let points = [Pos2::new(r.left() + r.width() * 0.1, r.center().y), Pos2::new(r.center().x - r.width() * 0.05, r.bottom() - r.height() * 0.15), Pos2::new(r.right() - r.width() * 0.05, r.top() + r.height() * 0.18)];
+            let points = [
+                Pos2::new(r.left() + r.width() * 0.1, r.center().y),
+                Pos2::new(
+                    r.center().x - r.width() * 0.05,
+                    r.bottom() - r.height() * 0.15,
+                ),
+                Pos2::new(r.right() - r.width() * 0.05, r.top() + r.height() * 0.18),
+            ];
             painter.line_segment([points[0], points[1]], stroke);
             painter.line_segment([points[1], points[2]], stroke);
         }
@@ -215,7 +242,11 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
                 Pos2::new(r.right() - r.width() * 0.06, r.bottom() - r.height() * 0.12),
                 Pos2::new(r.left() + r.width() * 0.06, r.bottom() - r.height() * 0.12),
             ];
-            painter.add(Shape::convex_polygon(points, color.gamma_multiply(0.18), thin));
+            painter.add(Shape::convex_polygon(
+                points,
+                color.gamma_multiply(0.18),
+                thin,
+            ));
             painter.text(
                 Pos2::new(r.center().x, r.center().y + r.height() * 0.06),
                 egui::Align2::CENTER_CENTER,
@@ -225,7 +256,11 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
             );
         }
         Icon::Search => {
-            painter.circle_stroke(r.center() + Vec2::new(-r.width() * 0.06, -r.height() * 0.06), r.width() * 0.26, thin);
+            painter.circle_stroke(
+                r.center() + Vec2::new(-r.width() * 0.06, -r.height() * 0.06),
+                r.width() * 0.26,
+                thin,
+            );
             painter.line_segment(
                 [
                     r.center() + Vec2::new(r.width() * 0.1, r.height() * 0.1),
@@ -236,21 +271,76 @@ pub fn paint(painter: &Painter, rect: Rect, icon: Icon, color: Color32) {
         }
         Icon::Dice => {
             painter.rect_stroke(r, 4.0, thin, egui::StrokeKind::Inside);
-            for (dx, dy) in [(-0.22, -0.22), (0.22, -0.22), (0.0, 0.0), (-0.22, 0.22), (0.22, 0.22)] {
-                painter.circle_filled(r.center() + Vec2::new(r.width() * dx, r.height() * dy), r.width() * 0.07, color);
+            for (dx, dy) in [
+                (-0.22, -0.22),
+                (0.22, -0.22),
+                (0.0, 0.0),
+                (-0.22, 0.22),
+                (0.22, 0.22),
+            ] {
+                painter.circle_filled(
+                    r.center() + Vec2::new(r.width() * dx, r.height() * dy),
+                    r.width() * 0.07,
+                    color,
+                );
             }
         }
         Icon::Export => {
-            painter.line_segment([Pos2::new(r.center().x, r.bottom()), Pos2::new(r.center().x, r.top() + r.height() * 0.2)], thin);
-            painter.line_segment([Pos2::new(r.center().x, r.top() + r.height() * 0.2), Pos2::new(r.left() + r.width() * 0.22, r.top() + r.height() * 0.42)], thin);
-            painter.line_segment([Pos2::new(r.center().x, r.top() + r.height() * 0.2), Pos2::new(r.right() - r.width() * 0.22, r.top() + r.height() * 0.42)], thin);
-            painter.line_segment([Pos2::new(r.left(), r.bottom()), Pos2::new(r.right(), r.bottom())], thin);
+            painter.line_segment(
+                [
+                    Pos2::new(r.center().x, r.bottom()),
+                    Pos2::new(r.center().x, r.top() + r.height() * 0.2),
+                ],
+                thin,
+            );
+            painter.line_segment(
+                [
+                    Pos2::new(r.center().x, r.top() + r.height() * 0.2),
+                    Pos2::new(r.left() + r.width() * 0.22, r.top() + r.height() * 0.42),
+                ],
+                thin,
+            );
+            painter.line_segment(
+                [
+                    Pos2::new(r.center().x, r.top() + r.height() * 0.2),
+                    Pos2::new(r.right() - r.width() * 0.22, r.top() + r.height() * 0.42),
+                ],
+                thin,
+            );
+            painter.line_segment(
+                [
+                    Pos2::new(r.left(), r.bottom()),
+                    Pos2::new(r.right(), r.bottom()),
+                ],
+                thin,
+            );
         }
         Icon::Import => {
-            painter.line_segment([Pos2::new(r.center().x, r.top()), Pos2::new(r.center().x, r.bottom() - r.height() * 0.2)], thin);
-            painter.line_segment([Pos2::new(r.center().x, r.bottom() - r.height() * 0.2), Pos2::new(r.left() + r.width() * 0.22, r.bottom() - r.height() * 0.42)], thin);
-            painter.line_segment([Pos2::new(r.center().x, r.bottom() - r.height() * 0.2), Pos2::new(r.right() - r.width() * 0.22, r.bottom() - r.height() * 0.42)], thin);
-            painter.line_segment([Pos2::new(r.left(), r.top()), Pos2::new(r.right(), r.top())], thin);
+            painter.line_segment(
+                [
+                    Pos2::new(r.center().x, r.top()),
+                    Pos2::new(r.center().x, r.bottom() - r.height() * 0.2),
+                ],
+                thin,
+            );
+            painter.line_segment(
+                [
+                    Pos2::new(r.center().x, r.bottom() - r.height() * 0.2),
+                    Pos2::new(r.left() + r.width() * 0.22, r.bottom() - r.height() * 0.42),
+                ],
+                thin,
+            );
+            painter.line_segment(
+                [
+                    Pos2::new(r.center().x, r.bottom() - r.height() * 0.2),
+                    Pos2::new(r.right() - r.width() * 0.22, r.bottom() - r.height() * 0.42),
+                ],
+                thin,
+            );
+            painter.line_segment(
+                [Pos2::new(r.left(), r.top()), Pos2::new(r.right(), r.top())],
+                thin,
+            );
         }
     }
 }

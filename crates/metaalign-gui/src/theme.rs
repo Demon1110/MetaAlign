@@ -3,13 +3,12 @@
 use std::collections::BTreeMap;
 
 use egui::style::WidgetVisuals;
-use egui::{
-    Color32, CornerRadius, FontFamily, FontId, Stroke, TextStyle, Vec2, Visuals,
-};
+use egui::{Color32, CornerRadius, FontFamily, FontId, Stroke, TextStyle, Vec2, Visuals};
 
 /// The two themes the app can render.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ThemeMode {
+    #[default]
     Dark,
     Light,
 }
@@ -31,12 +30,6 @@ impl ThemeMode {
             Self::Dark => "深色",
             Self::Light => "浅色",
         }
-    }
-}
-
-impl Default for ThemeMode {
-    fn default() -> Self {
-        Self::Dark
     }
 }
 
@@ -142,11 +135,23 @@ fn widget(
 
 fn text_styles() -> BTreeMap<TextStyle, FontId> {
     let mut styles = BTreeMap::new();
-    styles.insert(TextStyle::Heading, FontId::new(24.0, FontFamily::Proportional));
+    styles.insert(
+        TextStyle::Heading,
+        FontId::new(24.0, FontFamily::Proportional),
+    );
     styles.insert(TextStyle::Body, FontId::new(13.5, FontFamily::Proportional));
-    styles.insert(TextStyle::Button, FontId::new(13.5, FontFamily::Proportional));
-    styles.insert(TextStyle::Small, FontId::new(11.5, FontFamily::Proportional));
-    styles.insert(TextStyle::Monospace, FontId::new(12.5, FontFamily::Monospace));
+    styles.insert(
+        TextStyle::Button,
+        FontId::new(13.5, FontFamily::Proportional),
+    );
+    styles.insert(
+        TextStyle::Small,
+        FontId::new(11.5, FontFamily::Proportional),
+    );
+    styles.insert(
+        TextStyle::Monospace,
+        FontId::new(12.5, FontFamily::Monospace),
+    );
     styles.insert(
         TextStyle::Name("H1".into()),
         FontId::new(26.0, FontFamily::Proportional),

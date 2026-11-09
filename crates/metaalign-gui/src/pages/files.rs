@@ -5,7 +5,7 @@ use egui::{
 };
 use metaalign_core::office;
 
-use crate::app::{human_size, MetaAlignApp, Page};
+use crate::app::{MetaAlignApp, Page, human_size};
 use crate::icons::Icon;
 use crate::theme::Palette;
 use crate::ui;
@@ -143,7 +143,13 @@ pub fn show(app: &mut MetaAlignApp, ui: &mut Ui, p: &Palette) {
                     "拖入文件或文件夹，或者用上方按钮添加",
                 );
             } else {
-                ui::empty_state(ui, p, Icon::Search, "没有匹配的文件", "试着清空搜索或筛选条件");
+                ui::empty_state(
+                    ui,
+                    p,
+                    Icon::Search,
+                    "没有匹配的文件",
+                    "试着清空搜索或筛选条件",
+                );
             }
             ui.add_space(28.0);
         } else {
@@ -266,10 +272,8 @@ fn draw_row(ui: &mut Ui, p: &Palette, app: &MetaAlignApp, index: usize, selected
     );
     x += cols.name;
 
-    let badge_rect = Rect::from_center_size(
-        Pos2::new(x + 26.0, rect.center().y),
-        Vec2::new(44.0, 17.0),
-    );
+    let badge_rect =
+        Rect::from_center_size(Pos2::new(x + 26.0, rect.center().y), Vec2::new(44.0, 17.0));
     let accent = item.format.supports_office_meta();
     ui.painter().rect_filled(
         badge_rect,
@@ -287,7 +291,10 @@ fn draw_row(ui: &mut Ui, p: &Palette, app: &MetaAlignApp, index: usize, selected
 
     paint_text(
         ui,
-        Rect::from_min_size(Pos2::new(x, rect.top()), Vec2::new(cols.size, rect.height())),
+        Rect::from_min_size(
+            Pos2::new(x, rect.top()),
+            Vec2::new(cols.size, rect.height()),
+        ),
         &human_size(item.size),
         FontId::monospace(11.0),
         p.text_muted,
@@ -323,11 +330,8 @@ fn draw_row(ui: &mut Ui, p: &Palette, app: &MetaAlignApp, index: usize, selected
     } else {
         ("就绪", p.text_dim)
     };
-    ui.painter().circle_filled(
-        Pos2::new(x + 5.0, rect.center().y),
-        3.0,
-        status_color,
-    );
+    ui.painter()
+        .circle_filled(Pos2::new(x + 5.0, rect.center().y), 3.0, status_color);
     paint_text(
         ui,
         Rect::from_min_size(
@@ -349,7 +353,9 @@ fn draw_row(ui: &mut Ui, p: &Palette, app: &MetaAlignApp, index: usize, selected
 }
 
 fn paint_text(ui: &Ui, rect: Rect, text: &str, font: FontId, color: Color32) {
-    let painter = ui.painter().with_clip_rect(rect.shrink2(Vec2::new(0.0, 1.0)));
+    let painter = ui
+        .painter()
+        .with_clip_rect(rect.shrink2(Vec2::new(0.0, 1.0)));
     painter.text(
         Pos2::new(rect.left(), rect.center().y),
         Align2::LEFT_CENTER,

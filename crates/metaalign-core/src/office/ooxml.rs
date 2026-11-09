@@ -66,8 +66,8 @@ fn read_entries(bytes: &[u8]) -> Result<Vec<Entry>> {
 fn write_entries(entries: &[Entry]) -> Result<Vec<u8>> {
     let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for entry in entries {
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(entry.compression);
+        let options =
+            zip::write::SimpleFileOptions::default().compression_method(entry.compression);
         writer.start_file(entry.name.as_str(), options)?;
         writer.write_all(&entry.data)?;
     }
@@ -107,9 +107,7 @@ fn text_of(map: &HashMap<String, String>, key: &str) -> Option<String> {
 fn props_from_parts(core: Option<&str>, app: Option<&str>) -> Result<super::OfficeProps> {
     let mut props = super::OfficeProps::default();
     if let Some(core) = core {
-        let map: HashMap<String, String> = xmlpatch::collect_children(core)?
-            .into_iter()
-            .collect();
+        let map: HashMap<String, String> = xmlpatch::collect_children(core)?.into_iter().collect();
         props.author = text_of(&map, "creator");
         props.last_modified_by = text_of(&map, "lastModifiedBy");
         props.title = text_of(&map, "title");
@@ -122,9 +120,7 @@ fn props_from_parts(core: Option<&str>, app: Option<&str>) -> Result<super::Offi
         props.modified = map.get("modified").and_then(|value| parse_w3cdtf(value));
     }
     if let Some(app) = app {
-        let map: HashMap<String, String> = xmlpatch::collect_children(app)?
-            .into_iter()
-            .collect();
+        let map: HashMap<String, String> = xmlpatch::collect_children(app)?.into_iter().collect();
         props.company = text_of(&map, "Company");
         props.manager = text_of(&map, "Manager");
         props.app_name = text_of(&map, "Application");
@@ -154,21 +150,27 @@ pub fn read_file(path: &Path) -> Result<super::OfficeProps> {
 
 fn core_replacements(update: &OfficeUpdate) -> Vec<(Replacement, &'static str)> {
     let mut out = Vec::new();
-    let mut push = |local: &'static str, prefix: &'static str, value: &Option<String>, label: &'static str| {
-        if let Some(value) = value {
-            out.push((
-                Replacement {
-                    local,
-                    prefix,
-                    value: value.clone(),
-                    w3cdtf: false,
-                },
-                label,
-            ));
-        }
-    };
+    let mut push =
+        |local: &'static str, prefix: &'static str, value: &Option<String>, label: &'static str| {
+            if let Some(value) = value {
+                out.push((
+                    Replacement {
+                        local,
+                        prefix,
+                        value: value.clone(),
+                        w3cdtf: false,
+                    },
+                    label,
+                ));
+            }
+        };
     push("creator", "dc", &update.author, "作者");
-    push("lastModifiedBy", "cp", &update.last_modified_by, "最后修改人");
+    push(
+        "lastModifiedBy",
+        "cp",
+        &update.last_modified_by,
+        "最后修改人",
+    );
     push("title", "dc", &update.title, "标题");
     push("subject", "dc", &update.subject, "主题");
     push("keywords", "cp", &update.keywords, "关键词");
@@ -249,9 +251,7 @@ fn ensure_content_type(xml: &str, part: &str, content_type: &str) -> String {
     if xml.contains(&format!("PartName=\"/{part}\"")) {
         return xml.to_string();
     }
-    let override_tag = format!(
-        "<Override PartName=\"/{part}\" ContentType=\"{content_type}\"/>"
-    );
+    let override_tag = format!("<Override PartName=\"/{part}\" ContentType=\"{content_type}\"/>");
     match xml.rfind("</Types>") {
         Some(index) => {
             let mut out = String::with_capacity(xml.len() + override_tag.len());
@@ -268,9 +268,7 @@ fn ensure_root_relationship(xml: &str, part: &str, relationship_type: &str, id: 
     if xml.contains(&format!("Target=\"{part}\"")) {
         return xml.to_string();
     }
-    let tag = format!(
-        "<Relationship Id=\"{id}\" Type=\"{relationship_type}\" Target=\"{part}\"/>"
-    );
+    let tag = format!("<Relationship Id=\"{id}\" Type=\"{relationship_type}\" Target=\"{part}\"/>");
     match xml.rfind("</Relationships>") {
         Some(index) => {
             let mut out = String::with_capacity(xml.len() + tag.len());
@@ -387,7 +385,9 @@ pub fn write_file(path: &Path, update: &OfficeUpdate) -> Result<Vec<String>> {
     // Write to a sibling temp file first so a failure never leaves a half written document.
     let temp = path.with_extension(format!(
         "{}.metaalign.tmp",
-        path.extension().and_then(|value| value.to_str()).unwrap_or("tmp")
+        path.extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("tmp")
     ));
     std::fs::write(&temp, &new_bytes)?;
     if let Err(error) = std::fs::rename(&temp, path) {

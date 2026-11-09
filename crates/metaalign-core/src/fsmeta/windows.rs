@@ -183,6 +183,8 @@ pub fn read_filetime(path: &Path) -> Result<[Option<chrono::DateTime<chrono::Utc
     if ok == 0 {
         return Err(MetaError::from(io::Error::last_os_error()));
     }
-    let convert = |ft: FILETIME| filetime_ticks_to_unix(((ft.dwHighDateTime as u64) << 32) | ft.dwLowDateTime as u64);
+    let convert = |ft: FILETIME| {
+        filetime_ticks_to_unix(((ft.dwHighDateTime as u64) << 32) | ft.dwLowDateTime as u64)
+    };
     Ok([convert(created), convert(accessed), convert(modified)])
 }
