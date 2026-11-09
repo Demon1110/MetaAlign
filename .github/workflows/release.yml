@@ -155,7 +155,7 @@ jobs:
   # ---------------- Windows：release 构建 + zip ----------------
   windows:
     name: Windows x64
-    needs: checks
+    needs: [prepare, checks]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -187,7 +187,7 @@ jobs:
   # ---------------- Linux：release 构建 + tar.gz / deb ----------------
   linux:
     name: Linux x86_64
-    needs: checks
+    needs: [prepare, checks]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
