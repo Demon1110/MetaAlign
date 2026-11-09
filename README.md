@@ -307,23 +307,28 @@ Windows 可执行文件的图标、产品名与版本号由 `crates/metaalign-gu
 
 ## 发布
 
-`.github/workflows/release.yml` 只有一种触发方式：**手动触发**。点一次 `Run workflow`，流水线自己递增版本号、打包、打 tag、发 Release，不需要本地执行任何 git 命令：
+`.github/workflows/release.yml` 只有一种触发方式：**手动触发**。点一次 `Run workflow`，流水线自己递增版本号、打包、发布 crates.io、打 tag、发 Release，不需要本地执行任何 git 命令。顺序是刻意排成「先发布、全部成功后才落库」的：
 
 | 任务 | 内容 | 产物 |
 | --- | --- | --- |
-| `prepare` | 递增 `Cargo.toml` 的版本、同步 `Cargo.lock`、提交并推回分支 | 新版本号、tag、提交 SHA |
+| `prepare` | 按所选取方式递增 `Cargo.toml` 的版本、同步 `Cargo.lock` 里三个 workspace 成员的版本；**只改工作区，不提交、不 push、不打 tag**，把改好的两个文件上传成 artifact | 新版本号、tag 名 |
 | `checks` | `fmt --check`、`clippy -D warnings`、核心测试、wasm 目标编译检查 | 无 |
 | `windows` | `scripts/package-windows.ps1` | `MetaAlign-<版本>-windows-x64.zip` + `.sha256` |
 | `linux` | `scripts/package-linux.sh` | `.tar.gz`、`.deb` + `.sha256` |
-| `release` | 打 tag `v<版本>`，用两个平台的产物创建 GitHub Release | GitHub Release |
+| `publish` | `cargo package --allow-dirty` 校验 + `cargo publish -p metaalign-core --allow-dirty` 发 crates.io | crates.io 上的 `metaalign-core` |
+| `release` | **全部发布成功后**才提交版本变更（`chore(release): v<版本> [skip ci]`）、打 tag `v<版本>`、创建 GitHub Release | 提交 + tag + GitHub Release |
 
 触发时选递增方式：`patch`（默认，1.0.0 → 1.0.1）、`minor`（1.0.1 → 1.1.0）、`major`（1.1.0 → 2.0.0）。版本号仍然只有 `Cargo.toml` 一个来源，打包脚本从里面解析，CI 不重复抄写。
 
 几点行为要知道：
 
 - tag 已存在时 `prepare` 直接失败，不会覆盖已有 tag。
-- 版本递增发生在最前面，若后续构建或测试失败，分支上会留下一次「只改了版本号」的提交，此时不会产生 tag 与 Release；重新触发会在此基础上继续递增，不会重号。
-- `prepare` 需要往当前分支 push，所以 `Settings → Actions → General → Workflow permissions` 要允许写权限；分支开了保护规则时需要放行 `github-actions[bot]`。
+- **发布失败不留 git 痕迹**：版本递增只发生在工作区里，任何一步失败，分支上都不会多出「只改了版本号」的提交，也不会有 tag 与 Release；重新触发从当前 `Cargo.toml` 的版本继续递增，不会重号。
+- `prepare` 之后的每个任务都从 artifact 拿到同一份 `Cargo.toml` / `Cargo.lock`，所以 checks、两个平台的打包、crates.io 发布、最后的 tag 用的是同一个版本号。
+- 只发布 `metaalign-core`。GUI（eframe/GTK）与 wasm（wasm-bindgen）不适合发到 crates.io，所以不参与。
+- crates.io 发布需要仓库 secret `CARGO_REGISTRY_TOKEN`（在 crates.io 账号里建 API Token，再填到 `Settings → Secrets and variables → Actions`）。**没配这个 secret 时 `publish` 只做打包校验、不发版**，tag 与 Release 照常继续；配了之后如果发布失败，后面就不会打 tag，等于「crates.io 上没有的版本不会出现在 GitHub Release 里」。
+- 最后的提交与 tag 要 push 回分支，所以 `Settings → Actions → General → Workflow permissions` 要允许写权限；分支开了保护规则时需要放行 `github-actions[bot]`。
+- 发版提交带 `[skip ci]`：当前只有手动触发，这个标记是给将来可能的 push 触发留的保险，避免发版提交把自己再触发一遍。
 - 只想本地验证打包，仍然用 `scripts/` 下的脚本，不经过 CI。
 
 ### 体积
