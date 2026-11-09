@@ -28,5 +28,7 @@ env_logger = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 # 把 logo.ico 与版本信息烧进 Windows 可执行文件（资源管理器里的图标、属性页的版本号）
-[target.'cfg(windows)'.build-dependencies]
+# 注意：build.rs 自身在宿主平台上编译，依赖不能按 target 门控，否则 Linux 上构建
+# 会因为 build 脚本找不到这个 crate 而失败；资源生成仍只在 target_os=windows 时执行。
+[build-dependencies]
 winresource = "0.1"
