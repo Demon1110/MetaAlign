@@ -11,6 +11,7 @@ version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
+repository = "https://github.com/Demon1110/MetaAlign"
 authors = ["MetaAlign contributors"]
 
 [workspace.dependencies]
