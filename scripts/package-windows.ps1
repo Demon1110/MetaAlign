@@ -16,15 +16,20 @@
 .PARAMETER NoZip
     只生成 dist\stage 目录，不打 zip（方便本地直接跑）。
 
+.PARAMETER Upx
+    打包前用 UPX 压缩 exe（体积约 2.4 MB，启动稍慢；部分杀软可能误报）。
+
 .EXAMPLE
     pwsh -File scripts/package-windows.ps1
     pwsh -File scripts/package-windows.ps1 -SkipBuild
+    pwsh -File scripts/package-windows.ps1 -Upx
     pwsh -File scripts/package-windows.ps1 -Version 0.2.0
 #>
 param(
     [string]$Version,
     [switch]$SkipBuild,
-    [switch]$NoZip
+    [switch]$NoZip,
+    [switch]$Upx
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,6 +78,22 @@ Copy-Item -LiteralPath (Join-Path $root "crates\metaalign-gui\assets\icon.png") 
 $exeInfo = Get-Item -LiteralPath $exe
 Write-Host ("==> 产物目录：{0}" -f $stage)
 Write-Host ("    MetaAlign.exe  {0:N2} MB" -f ($exeInfo.Length / 1MB))
+
+if ($Upx) {
+    $stagedExe = Join-Path $stage "MetaAlign.exe"
+    # 变量名不能叫 $upx，和 -Upx 这个 switch 参数同名（PowerShell 不区分大小写）
+    $upxPath = (Get-Command upx -ErrorAction SilentlyContinue).Source
+    if (-not $upxPath) {
+        throw "未找到 upx，可 winget install UPX.UPX，或去掉 -Upx"
+    }
+    $before = (Get-Item -LiteralPath $stagedExe).Length
+    & $upxPath --best --lzma $stagedExe *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "upx 压缩失败（exit $LASTEXITCODE）"
+    }
+    $after = (Get-Item -LiteralPath $stagedExe).Length
+    Write-Host ("    UPX 压缩：{0:N2} MB -> {1:N2} MB" -f ($before / 1MB), ($after / 1MB))
+}
 
 if ($NoZip) {
     return

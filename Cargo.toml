@@ -47,8 +47,11 @@ js-sys = "0.3.107"
 console_error_panic_hook = "0.1.7"
 
 [profile.release]
-opt-level = 3
-lto = "thin"
+# 体积优先：opt-level="z" + fat LTO + panic=abort，1.0.0 的 Windows exe 从
+# 9.2 MB 降到约 6.4 MB；细节见 README「发布」段的体积说明。
+opt-level = "z"
+lto = "fat"
+panic = "abort"
 codegen-units = 1
 strip = "symbols"
 

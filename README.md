@@ -325,6 +325,18 @@ git push origin v1.0.0
 
 tag 与版本号不一致时流水线会直接失败，避免发出去的包和版本对不上。
 
+### 体积
+
+`[profile.release]` 按体积优先配置：`opt-level = "z"`、`lto = "fat"`、`panic = "abort"`、`codegen-units = 1`、`strip = "symbols"`。1.0.0 的 Windows exe 从 9.2 MB 降到 6.4 MB（zip 3.2 MB），代价是极端场景下比 `opt-level = 3` 慢一点点，对这类批量改元数据的桌面工具可忽略。
+
+还要更小就给打包脚本加 `-Upx`：
+
+```powershell
+pwsh -File scripts\package-windows.ps1 -Upx
+```
+
+exe 从 6.4 MB 压到 2.3 MB（zip 2.3 MB），代价是启动时多一次解压、以及部分杀毒软件会对 UPX 加壳程序误报，所以默认不开启，只做可选产物。
+
 ## 许可证
 
 MIT，见 [LICENSE](LICENSE)。
