@@ -1443,7 +1443,7 @@ dependencies = [
 
 [[package]]
 name = "metaalign-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "cfb",
  "chrono",
@@ -1462,7 +1462,7 @@ dependencies = [
 
 [[package]]
 name = "metaalign-gui"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "eframe",
@@ -1481,7 +1481,7 @@ dependencies = [
 
 [[package]]
 name = "metaalign-wasm"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
