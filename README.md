@@ -109,6 +109,33 @@ cargo test -p metaalign-core
 
 界面文案与文档均为简体中文；中文字体在启动时从系统字体目录（优先微软雅黑）加载，因此二进制里不打包 TTF，也不会出现方块字。
 
+## Linux 构建与运行
+
+同一份源码在 Linux 上也能编译运行，平台相关部分换成 Unix 实现即可。
+
+```bash
+# 运行依赖（Ubuntu / Debian；libgl1 用于 OpenGL，中文字体任选其一）
+sudo apt install libgl1 libxkbcommon0 libx11-6 fontconfig fonts-noto-cjk
+
+git clone <repo> MetaAlign && cd MetaAlign
+cargo build --release -p metaalign-gui     # 产物 target/release/MetaAlign
+./target/release/MetaAlign
+```
+
+- 渲染后端是 glow（OpenGL），X11 与 Wayland 都在；无 GPU 的虚拟机里加 `LIBGL_ALWAYS_SOFTWARE=1` 走软件渲染。
+- 有桌面环境但没有显示器时，可用 `xvfb-run -a ./target/release/MetaAlign` 做冒烟测试。
+- 打包用 `bash scripts/package-linux.sh`，产出 `dist/` 下的 `.tar.gz` 与 `.deb`。
+
+Linux 与 Windows 的能力差异（引擎按平台自动降级，并在变更明细里标「已跳过」）：
+
+| 能力 | Windows | Linux / macOS |
+|---|---|---|
+| 修改时间、访问时间 | 可写 | 可写 |
+| **创建时间** | 可写（Win32 API） | 只读，写入请求被跳过 |
+| 隐藏 / 系统 / 存档位 | 可读写 | 不适用，请求被跳过 |
+| 只读位 | 可读写 | 映射为文件权限位 |
+| Office 内置属性 | 可写 | 可写 |
+
 ## 使用流程
 
 1. **文件队列**：拖入文件或文件夹，或用「添加文件 / 添加文件夹」挑选。统计卡会实时显示队列总量、Office 文档数、普通文件数。

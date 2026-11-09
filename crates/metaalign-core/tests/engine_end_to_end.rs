@@ -8,7 +8,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use metaalign_core::engine::{apply_one, ItemStatus};
 use metaalign_core::fsmeta;
 use metaalign_core::model::{
-    BackupMode, BatchPlan, FieldMode, FlagMode, TextField, TimeField, TimeRange,
+    BackupMode, BatchPlan, FlagMode, TextField, TimeField, TimeRange,
 };
 use metaalign_core::office;
 
@@ -84,8 +84,11 @@ fn rewrites_timestamps_and_document_props() {
     assert!(!outcome.changes.is_empty());
 
     let snapshot = fsmeta::read_snapshot(&path).expect("snapshot after run");
-    let created = snapshot.created.expect("created time");
-    assert!(created >= start - TimeDelta::seconds(1) && created <= end + TimeDelta::seconds(1));
+    // 创建时间只有 Win32 能写，其它平台由引擎如实降级，因此这里只在 Windows 断言。
+    if cfg!(windows) {
+        let created = snapshot.created.expect("created time");
+        assert!(created >= start - TimeDelta::seconds(1) && created <= end + TimeDelta::seconds(1));
+    }
 
     let props = office::read_props(&path)
         .expect("read props")

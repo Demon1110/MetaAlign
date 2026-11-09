@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=MetaAlign
+Name[zh_CN]=MetaAlign 元数据整理
+GenericName=Metadata Normalizer
+GenericName[zh_CN]=元数据批量整理
+Comment=Batch-edit file timestamps and Office document properties
+Comment[zh_CN]=批量修改文件时间戳与 Office 文档内置属性
+Exec=__PREFIX__/bin/MetaAlign
+Icon=__PREFIX__/share/icons/hicolor/256x256/apps/metaalign.png
+Terminal=false
+Categories=Utility;Office;
+Keywords=metadata;timestamp;docx;xlsx;pptx;
+StartupWMClass=MetaAlign

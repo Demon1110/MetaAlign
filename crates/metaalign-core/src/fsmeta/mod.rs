@@ -26,6 +26,20 @@ mod web;
 #[cfg(target_arch = "wasm32")]
 use web as platform;
 
+/// Whether the current platform can *write* a file's creation time.
+///
+/// Only the Win32 API exposes this; Unix systems have no creation time that can
+/// be set after the fact, so the engine drops the request and reports it instead
+/// of pretending it succeeded.
+pub const fn supports_created_time() -> bool {
+    cfg!(windows)
+}
+
+/// Whether the DOS attribute bits (hidden / system / archive) mean anything here.
+pub const fn supports_attribute_bits() -> bool {
+    cfg!(windows)
+}
+
 /// The current state of a file on disk.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct FsSnapshot {

@@ -351,6 +351,23 @@ pub fn apply_one(
     fs_patch.modified = times.modified;
     fs_patch.accessed = times.accessed;
 
+    // Platforms without the Win32 attribute APIs cannot honour these requests.
+    // Drop them up front, so the reported change list matches what really lands
+    // on disk instead of promising a creation time that will never be written.
+    let mut limitations: Vec<&'static str> = Vec::new();
+    if !fsmeta::supports_created_time() && fs_patch.created.is_some() {
+        fs_patch.created = None;
+        limitations.push("文件创建时间");
+    }
+    if !fsmeta::supports_attribute_bits()
+        && (fs_patch.hidden.is_some() || fs_patch.system.is_some() || fs_patch.archive.is_some())
+    {
+        fs_patch.hidden = None;
+        fs_patch.system = None;
+        fs_patch.archive = None;
+        limitations.push("隐藏 / 系统 / 存档位");
+    }
+
     let office_supported = format.supports_office_meta();
     let update = if office_supported && plan.office.any_change() {
         office_update(&plan.office, &plan.time, &times, &plan.names, rng)
@@ -359,6 +376,16 @@ pub fn apply_one(
     };
 
     if fs_patch.is_empty() && update.is_empty() {
+        if !limitations.is_empty() {
+            let changes: Vec<_> = limitations
+                .iter()
+                .map(|field| ChangeRecord::new(*field, "需要写入", "已跳过（当前平台不支持）"))
+                .collect();
+            return finish(
+                ItemStatus::Skipped("当前平台不支持勾选的项".to_string()),
+                changes,
+            );
+        }
         return finish(ItemStatus::Skipped("当前设置不会改变这个文件".to_string()), Vec::new());
     }
 
@@ -372,6 +399,13 @@ pub fn apply_one(
     };
     if !update.is_empty() {
         diff_office(&mut changes, props.as_ref(), &update);
+    }
+    for field in &limitations {
+        changes.push(ChangeRecord::new(
+            *field,
+            "需要写入",
+            "已跳过（当前平台不支持）",
+        ));
     }
 
     if plan.options.dry_run {
